@@ -84,6 +84,22 @@ curriculaRouter.get("/:id/topics", async (c) => {
     return c.json({ message: "Invalid token" }, 401);
   }
   const supabaseForUser = createSupabaseClientWithToken(token);
+
+  // curriculum の存在確認を先に行う
+  const { data: curriculum, error: curriculumError } = await supabaseForUser
+    .from("curricula")
+    .select("id")
+    .eq("id", id)
+    .single();
+
+  if (curriculumError) {
+    if (curriculumError.code === "PGRST116") {
+      return c.json({ message: "Curriculum not found" }, 404);
+    }
+    return c.json({ message: "Failed to fetch curriculum" }, 500);
+  }
+
+  // 存在確認後に topics を取得
   const { data, error } = await supabaseForUser
     .from("topics")
     .select("id,title,description,order_index,status")
