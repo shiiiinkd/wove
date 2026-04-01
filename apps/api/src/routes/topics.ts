@@ -104,6 +104,9 @@ topicsRouter.patch("/:id", async (c) => {
     if (error.code === "PGRST116") {
       return c.json({ message: "Topic not found" }, 404);
     }
+    if (error.code === "22P02") {
+      return c.json({ message: "Invalid topic id" }, 400);
+    }
     return c.json({ message: "Failed to update topic" }, 500);
   }
   return c.json(data, 200);
