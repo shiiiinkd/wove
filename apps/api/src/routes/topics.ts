@@ -59,7 +59,14 @@ topicsRouter.patch("/:id", async (c) => {
     return c.json({ message: "Invalid token" }, 401);
   }
 
-  const body = await c.req.json<{ title?: string; description?: string }>();
+  // bodyは全体で必要だが、try内で再代入が必要なためletで宣言。
+  let body: { title?: string; description?: string };
+  try {
+    body = await c.req.json<{ title?: string; description?: string }>();
+  } catch {
+    // JSONパースエラーのみcatchする
+    return c.json({ message: "Invalid JSON body" }, 400);
+  }
   const { title, description } = body;
 
   // 空更新を防ぐ。少なくとも1フィールドは指定必須。
