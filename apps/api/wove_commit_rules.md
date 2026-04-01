@@ -221,7 +221,7 @@ feat/curricula-api → ⭕
 ```text
 feat/login-and-api-and-ui → ❌
 feat/login → ⭕
-feat/api → ⭕
+feat/curricula-api → ⭕
 ```
 
 ---
