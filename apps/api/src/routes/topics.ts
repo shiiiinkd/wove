@@ -32,16 +32,33 @@ topicsRouter.get("/:id", async (c) => {
     return c.json({ message: "Invalid token" }, 401);
   }
   const supabaseForUser = createSupabaseClientWithToken(token);
-  const { data, error } = await supabaseForUser
+
+  // topics を取得。
+  const { data: topic, error: topicError } = await supabaseForUser
     .from("topics")
     .select("id,curriculum_id,title,description,order_index,status")
     .eq("id", id)
     .single();
-  if (error) {
-    console.log(error);
+  if (topicError) {
+    console.error(topicError);
+    if (topicError?.code === "PGRST116") {
+      return c.json({ message: "Topic not found" }, 404);
+    }
     return c.json({ message: "Failed to fetch topic" }, 500);
   }
-  return c.json(data, 200);
+
+  // is_latest の最新 summary を取得。summaryの未存在は 200+null で返す。
+  const { data: summary, error: summaryError } = await supabaseForUser
+    .from("summaries")
+    .select("id,content,created_at")
+    .eq("topic_id", id)
+    .eq("is_latest", true)
+    .maybeSingle();
+  if (summaryError) {
+    console.error(summaryError);
+    return c.json({ message: "Failed to fetch summary" }, 500);
+  }
+  return c.json({ ...topic, latest_summary: summary ?? null }, 200);
 });
 
 // MVPでは topic 構造編集を許可しないため、更新対象を title/description に限定する。
@@ -56,7 +73,14 @@ topicsRouter.patch("/:id", async (c) => {
     return c.json({ message: "Invalid token" }, 401);
   }
 
-  const body = await c.req.json<{ title?: string; description?: string }>();
+  // bodyは全体で必要だが、try内で再代入が必要なためletで宣言。
+  let body: { title?: string; description?: string };
+  try {
+    body = await c.req.json<{ title?: string; description?: string }>();
+  } catch {
+    // JSONパースエラーのみcatchする
+    return c.json({ message: "Invalid JSON body" }, 400);
+  }
   const { title, description } = body;
 
   // 空更新を防ぐ。少なくとも1フィールドは指定必須。
@@ -76,8 +100,14 @@ topicsRouter.patch("/:id", async (c) => {
     .select("id,curriculum_id,title,description,order_index,status")
     .single();
   if (error) {
-    console.log(error);
-    return c.json({ message: "Failed to update topic" }, 404);
+    console.error(error);
+    if (error.code === "PGRST116") {
+      return c.json({ message: "Topic not found" }, 404);
+    }
+    if (error.code === "22P02") {
+      return c.json({ message: "Invalid topic id" }, 400);
+    }
+    return c.json({ message: "Failed to update topic" }, 500);
   }
   return c.json(data, 200);
 });

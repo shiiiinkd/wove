@@ -52,7 +52,13 @@ summariesRouter.post("/", async (c) => {
   );
 
   if (error) {
-    console.log(error);
+    console.error(error);
+    if (error.code === "22P02") {
+      return c.json({ message: "Invalid topic_id format" }, 400);
+    }
+    if (error.code === "23503") {
+      return c.json({ message: "Topic not found" }, 404);
+    }
     return c.json({ message: "Failed to save summary" }, 500);
   }
 
