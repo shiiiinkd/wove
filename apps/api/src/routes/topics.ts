@@ -38,7 +38,10 @@ topicsRouter.get("/:id", async (c) => {
     .eq("id", id)
     .single();
   if (error) {
-    console.log(error);
+    console.error(error);
+    if (error.code === "PGRST116") {
+      return c.json({ message: "Topic not found" }, 404);
+    }
     return c.json({ message: "Failed to fetch topic" }, 500);
   }
   return c.json(data, 200);
@@ -76,8 +79,11 @@ topicsRouter.patch("/:id", async (c) => {
     .select("id,curriculum_id,title,description,order_index,status")
     .single();
   if (error) {
-    console.log(error);
-    return c.json({ message: "Failed to update topic" }, 404);
+    console.error(error);
+    if (error.code === "PGRST116") {
+      return c.json({ message: "Topic not found" }, 404);
+    }
+    return c.json({ message: "Failed to update topic" }, 500);
   }
   return c.json(data, 200);
 });

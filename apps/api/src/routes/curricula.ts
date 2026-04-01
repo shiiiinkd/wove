@@ -36,7 +36,7 @@ curriculaRouter.get("/", async (c) => {
     .select("id,title,slug,description,created_at")
     .order("created_at", { ascending: false });
   if (error) {
-    console.log(error);
+    console.error(error);
     return c.json({ message: "Failed to fetch curricula" }, 500);
   }
   return c.json(data, 200);
@@ -63,7 +63,10 @@ curriculaRouter.get("/:id", async (c) => {
     .single();
 
   if (error) {
-    console.log(error);
+    console.error(error);
+    if (error.code === "PGRST116") {
+      return c.json({ message: "Curriculum not found" }, 404);
+    }
     return c.json({ message: "Failed to fetch curriculum" }, 500);
   }
   return c.json(data, 200);
@@ -87,7 +90,7 @@ curriculaRouter.get("/:id/topics", async (c) => {
     .eq("curriculum_id", id)
     .order("order_index", { ascending: true });
   if (error) {
-    console.log(error);
+    console.error(error);
     return c.json({ message: "Failed to fetch topics" }, 500);
   }
   return c.json(data, 200);
