@@ -85,22 +85,7 @@ curriculaRouter.get("/:id/topics", async (c) => {
   }
   const supabaseForUser = createSupabaseClientWithToken(token);
 
-  // curriculum の存在確認を先に行う
-  const { data: _curriculum, error: curriculumError } = await supabaseForUser
-    .from("curricula")
-    .select("id")
-    .eq("id", id)
-    .single();
-
-  if (curriculumError) {
-    console.error(curriculumError);
-    if (curriculumError.code === "PGRST116") {
-      return c.json({ message: "Curriculum not found" }, 404);
-    }
-    return c.json({ message: "Failed to fetch curriculum" }, 500);
-  }
-
-  // 存在確認後に topics を取得
+  // まず topics を取得する（通常ケースでは1クエリで完結）
   const { data, error } = await supabaseForUser
     .from("topics")
     .select("id,title,description,order_index,status")
@@ -110,6 +95,24 @@ curriculaRouter.get("/:id/topics", async (c) => {
     console.error(error);
     return c.json({ message: "Failed to fetch topics" }, 500);
   }
+
+  // topics が空の場合のみ、curriculum の存在確認を行う（404 セマンティクスのため）
+  if (data.length === 0) {
+    const { error: curriculumError } = await supabaseForUser
+      .from("curricula")
+      .select("id")
+      .eq("id", id)
+      .single();
+
+    if (curriculumError) {
+      console.error(curriculumError);
+      if (curriculumError.code === "PGRST116") {
+        return c.json({ message: "Curriculum not found" }, 404);
+      }
+      return c.json({ message: "Failed to fetch curriculum" }, 500);
+    }
+  }
+
   return c.json(data, 200);
 });
 
