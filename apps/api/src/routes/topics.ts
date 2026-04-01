@@ -39,6 +39,13 @@ topicsRouter.get("/:id", async (c) => {
     .select("id,curriculum_id,title,description,order_index,status")
     .eq("id", id)
     .single();
+  if (topicError) {
+    console.error(topicError);
+    if (topicError?.code === "PGRST116") {
+      return c.json({ message: "Topic not found" }, 404);
+    }
+    return c.json({ message: "Failed to fetch topic" }, 500);
+  }
 
   // is_latest の最新 summary を取得。summaryの未存在は 200+null で返す。
   const { data: summary, error: summaryError } = await supabaseForUser
@@ -47,14 +54,6 @@ topicsRouter.get("/:id", async (c) => {
     .eq("topic_id", id)
     .eq("is_latest", true)
     .maybeSingle();
-
-  if (topicError) {
-    console.error(topicError);
-    if (topicError?.code === "PGRST116") {
-      return c.json({ message: "Topic not found" }, 404);
-    }
-    return c.json({ message: "Failed to fetch topic" }, 500);
-  }
   if (summaryError) {
     console.error(summaryError);
     return c.json({ message: "Failed to fetch summary" }, 500);
