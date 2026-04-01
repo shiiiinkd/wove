@@ -86,13 +86,14 @@ curriculaRouter.get("/:id/topics", async (c) => {
   const supabaseForUser = createSupabaseClientWithToken(token);
 
   // curriculum の存在確認を先に行う
-  const { data: curriculum, error: curriculumError } = await supabaseForUser
+  const { data: _curriculum, error: curriculumError } = await supabaseForUser
     .from("curricula")
     .select("id")
     .eq("id", id)
     .single();
 
   if (curriculumError) {
+    console.error(curriculumError);
     if (curriculumError.code === "PGRST116") {
       return c.json({ message: "Curriculum not found" }, 404);
     }
