@@ -67,6 +67,9 @@ curriculaRouter.get("/:id", async (c) => {
     if (error.code === "PGRST116") {
       return c.json({ message: "Curriculum not found" }, 404);
     }
+    if (error.code === "22P02") {
+      return c.json({ message: "Invalid curriculum id" }, 400);
+    }
     return c.json({ message: "Failed to fetch curriculum" }, 500);
   }
   return c.json(data, 200);
@@ -108,6 +111,9 @@ curriculaRouter.get("/:id/topics", async (c) => {
       console.error(curriculumError);
       if (curriculumError.code === "PGRST116") {
         return c.json({ message: "Curriculum not found" }, 404);
+      }
+      if (curriculumError.code === "22P02") {
+        return c.json({ message: "Invalid curriculum id" }, 400);
       }
       return c.json({ message: "Failed to fetch curriculum" }, 500);
     }
