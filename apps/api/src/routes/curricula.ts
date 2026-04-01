@@ -36,7 +36,7 @@ curriculaRouter.get("/", async (c) => {
     .select("id,title,slug,description,created_at")
     .order("created_at", { ascending: false });
   if (error) {
-    console.log(error);
+    console.error(error);
     return c.json({ message: "Failed to fetch curricula" }, 500);
   }
   return c.json(data, 200);
@@ -63,7 +63,13 @@ curriculaRouter.get("/:id", async (c) => {
     .single();
 
   if (error) {
-    console.log(error);
+    console.error(error);
+    if (error.code === "PGRST116") {
+      return c.json({ message: "Curriculum not found" }, 404);
+    }
+    if (error.code === "22P02") {
+      return c.json({ message: "Invalid curriculum id" }, 400);
+    }
     return c.json({ message: "Failed to fetch curriculum" }, 500);
   }
   return c.json(data, 200);
@@ -81,15 +87,38 @@ curriculaRouter.get("/:id/topics", async (c) => {
     return c.json({ message: "Invalid token" }, 401);
   }
   const supabaseForUser = createSupabaseClientWithToken(token);
+
+  // まず topics を取得する（通常ケースでは1クエリで完結）
   const { data, error } = await supabaseForUser
     .from("topics")
     .select("id,title,description,order_index,status")
     .eq("curriculum_id", id)
     .order("order_index", { ascending: true });
   if (error) {
-    console.log(error);
+    console.error(error);
     return c.json({ message: "Failed to fetch topics" }, 500);
   }
+
+  // topics が空の場合のみ、curriculum の存在確認を行う（404 セマンティクスのため）
+  if (data.length === 0) {
+    const { error: curriculumError } = await supabaseForUser
+      .from("curricula")
+      .select("id")
+      .eq("id", id)
+      .single();
+
+    if (curriculumError) {
+      console.error(curriculumError);
+      if (curriculumError.code === "PGRST116") {
+        return c.json({ message: "Curriculum not found" }, 404);
+      }
+      if (curriculumError.code === "22P02") {
+        return c.json({ message: "Invalid curriculum id" }, 400);
+      }
+      return c.json({ message: "Failed to fetch curriculum" }, 500);
+    }
+  }
+
   return c.json(data, 200);
 });
 
