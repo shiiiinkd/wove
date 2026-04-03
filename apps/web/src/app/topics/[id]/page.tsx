@@ -74,7 +74,20 @@ export default function TopicDetailPage({
       setSaving(false);
       return;
     }
-    router.refresh();
+    const saved = await res.json();
+    setTopic((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        status: "completed",
+        latest_summary: {
+          id: saved.id,
+          content: saved.content,
+          created_at: saved.created_at,
+        },
+      };
+    });
+
     setSaving(false);
   }
 
