@@ -107,7 +107,7 @@ MVPで扱わないもの：
 
 ### プロジェクト全体
 
-- `docs/project/`
+- `docs/projects/`
 
 ### フェーズ関連
 
