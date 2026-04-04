@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchWithAuth } from "@/lib/api";
-import { STATUS_LABEL } from "@/lib/status";
+import { getStatusLabel } from "@/lib/status";
 
 type Topic = {
   id: string;
@@ -88,7 +88,7 @@ export default function CurriculumDetailPage({
             >
               <span className="font-medium">{t.title}</span>
               <span className="text-sm text-gray-500">
-                {STATUS_LABEL[t.status] ?? t.status}
+                {getStatusLabel(t.status)}
               </span>
             </Link>
           </li>

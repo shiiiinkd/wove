@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchWithAuth } from "@/lib/api";
-import { STATUS_LABEL } from "@/lib/status";
+import { getStatusLabel } from "@/lib/status";
 
 type LatestSummary = { id: string; content: string; created_at: string } | null;
 type Topic = {
@@ -120,7 +120,7 @@ export default function TopicDetailPage({
         </Link>
       </div>
       <p className="text-sm text-gray-500">
-        {STATUS_LABEL[topic.status] ?? topic.status}
+        {getStatusLabel(topic.status)}
       </p>
       {topic.description && (
         <p className="text-gray-700">{topic.description}</p>
