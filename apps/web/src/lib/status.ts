@@ -6,6 +6,11 @@ const STATUS_LABEL: Record<TopicStatus, string> = {
   completed: "完了",
 };
 
+function isTopicStatus(status: string): status is TopicStatus {
+  return status in STATUS_LABEL;
+}
+
 export function getStatusLabel(status: string): string {
-  return STATUS_LABEL[status as TopicStatus] ?? status;
+  if (!isTopicStatus(status)) return status;
+  return STATUS_LABEL[status];
 }
