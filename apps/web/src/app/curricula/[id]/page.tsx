@@ -1,5 +1,5 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -27,9 +27,9 @@ type Curriculum = {
 export default function CurriculumDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = use(params);
+  const { id } = params;
   const router = useRouter();
   const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);

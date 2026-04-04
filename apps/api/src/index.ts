@@ -18,11 +18,16 @@ const app = new Hono();
 
 // CORSミドルウェアの実装。
 // ブラウザからの cross-origin リクエスト用。Preflight は OPTIONS。
+// CORS_ORIGIN 環境変数でカンマ区切りの複数オリジンを指定可能。
+// 未設定時は http://localhost:3000 をデフォルトとして使用する。
+
+const rawOrigins = process.env.CORS_ORIGIN ?? "http://localhost:3000";
+const allowedOrigins = rawOrigins.split(",").map((o) => o.trim());
 
 app.use(
   "*",
   cors({
-    origin: "http://localhost:3000", // Next の dev URL（本番は別ドメインに変更）
+    origin: (origin) => (allowedOrigins.includes(origin) ? origin : allowedOrigins[0]),
     allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     maxAge: 86400,
