@@ -58,37 +58,38 @@ export default function TopicDetailPage({
     e.preventDefault();
     setSaving(true);
     setSaveError(null);
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
-      router.push("/login");
-      return;
-    }
-    const res = await fetchWithAuth("/summaries", session.access_token, {
-      method: "POST",
-      body: JSON.stringify({ topic_id: id, content }),
-    });
-    if (!res.ok) {
-      setSaveError("保存に失敗しました");
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+      const res = await fetchWithAuth("/summaries", session.access_token, {
+        method: "POST",
+        body: JSON.stringify({ topic_id: id, content }),
+      });
+      if (!res.ok) {
+        setSaveError("保存に失敗しました");
+        return;
+      }
+      const saved = await res.json();
+      setTopic((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          status: "completed",
+          latest_summary: {
+            id: saved.id,
+            content: saved.content,
+            created_at: saved.created_at,
+          },
+        };
+      });
+    } finally {
       setSaving(false);
-      return;
     }
-    const saved = await res.json();
-    setTopic((prev) => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        status: "completed",
-        latest_summary: {
-          id: saved.id,
-          content: saved.content,
-          created_at: saved.created_at,
-        },
-      };
-    });
-
-    setSaving(false);
   }
 
   if (loading) return <p className="p-8">読み込み中...</p>;
