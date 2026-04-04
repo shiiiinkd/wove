@@ -37,25 +37,39 @@ export default function CurriculumDetailPage({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-      const token = session.access_token;
-      const [cRes, tRes] = await Promise.all([
-        fetchWithAuth(`/curricula/${id}`, token),
-        fetchWithAuth(`/curricula/${id}/topics`, token),
-      ]);
-      if (!cRes.ok || !tRes.ok) {
+    const loadCurriculum = async () => {
+      try {
+        setError(null);
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session) {
+          router.push("/login");
+          return;
+        }
+
+        const token = session.access_token;
+        const [cRes, tRes] = await Promise.all([
+          fetchWithAuth(`/curricula/${id}`, token),
+          fetchWithAuth(`/curricula/${id}/topics`, token),
+        ]);
+
+        if (!cRes.ok || !tRes.ok) {
+          setError("取得に失敗しました");
+          return;
+        }
+
+        setCurriculum(await cRes.json());
+        setTopics(await tRes.json());
+      } catch {
         setError("取得に失敗しました");
+      } finally {
         setLoading(false);
-        return;
       }
-      setCurriculum(await cRes.json());
-      setTopics(await tRes.json());
-      setLoading(false);
-    });
+    };
+
+    loadCurriculum();
   }, [id, router]);
 
   if (loading) return <p className="p-8">読み込み中...</p>;

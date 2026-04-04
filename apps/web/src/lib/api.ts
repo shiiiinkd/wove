@@ -11,12 +11,16 @@ export async function fetchWithAuth(
   token: string,
   options?: RequestInit,
 ) {
+  const headers = new Headers(options?.headers as HeadersInit | undefined);
+
+  headers.set("Authorization", `Bearer ${token}`);
+
+  if (options?.body != null && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   return fetch(`${API_URL}${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...options?.headers,
-    },
+    headers,
   });
 }

@@ -19,20 +19,32 @@ export default function CurriculaPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-      const res = await fetchWithAuth("/curricula", session.access_token);
-      if (!res.ok) {
+    const loadCurricula = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session) {
+          router.push("/login");
+          return;
+        }
+
+        const res = await fetchWithAuth("/curricula", session.access_token);
+        if (!res.ok) {
+          setError("取得に失敗しました");
+          return;
+        }
+
+        setCurricula(await res.json());
+      } catch {
         setError("取得に失敗しました");
+      } finally {
         setLoading(false);
-        return;
       }
-      setCurricula(await res.json());
-      setLoading(false);
-    });
+    };
+
+    loadCurricula();
   }, [router]);
 
   if (loading) return <p className="p-8">読み込み中...</p>;

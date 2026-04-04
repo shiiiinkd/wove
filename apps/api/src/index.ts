@@ -22,12 +22,22 @@ const app = new Hono();
 // 未設定時は http://localhost:3000 をデフォルトとして使用する。
 
 const rawOrigins = process.env.CORS_ORIGIN ?? "http://localhost:3000";
-const allowedOrigins = rawOrigins.split(",").map((o) => o.trim());
+const allowedOrigins = rawOrigins
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+const normalizedAllowedOrigins =
+  allowedOrigins.length > 0 ? allowedOrigins : ["http://localhost:3000"];
 
 app.use(
   "*",
   cors({
-    origin: (origin) => (allowedOrigins.includes(origin) ? origin : allowedOrigins[0]),
+    origin: (origin) => {
+      if (!origin) {
+        return undefined;
+      }
+      return normalizedAllowedOrigins.includes(origin) ? origin : undefined;
+    },
     allowMethods: ["GET", "POST", "PATCH", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     maxAge: 86400,

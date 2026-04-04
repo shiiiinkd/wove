@@ -20,22 +20,31 @@ export default function TopicEditPage({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-      const res = await fetchWithAuth(`/topics/${id}`, session.access_token);
-      if (!res.ok) {
+    async function loadTopic() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/login");
+          return;
+        }
+        const res = await fetchWithAuth(`/topics/${id}`, session.access_token);
+        if (!res.ok) {
+          setFetchError("取得に失敗しました");
+          return;
+        }
+        const data = await res.json();
+        setTitle(data.title);
+        setDescription(data.description ?? "");
+      } catch {
         setFetchError("取得に失敗しました");
+      } finally {
         setLoading(false);
-        return;
       }
-      const data = await res.json();
-      setTitle(data.title);
-      setDescription(data.description ?? "");
-      setLoading(false);
-    });
+    }
+
+    void loadTopic();
   }, [id, router]);
 
   async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
@@ -59,6 +68,8 @@ export default function TopicEditPage({
         return;
       }
       router.push(`/topics/${id}`);
+    } catch {
+      setError("更新に失敗しました");
     } finally {
       setSaving(false);
     }

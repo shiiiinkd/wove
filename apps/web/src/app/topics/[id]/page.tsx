@@ -1,5 +1,5 @@
 "use client";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -24,9 +24,9 @@ type Topic = {
 export default function TopicDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const { id } = use(params);
+  const { id } = params;
   const router = useRouter();
   const [topic, setTopic] = useState<Topic | null>(null);
   const [content, setContent] = useState("");
@@ -36,22 +36,31 @@ export default function TopicDetailPage({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-      const res = await fetchWithAuth(`/topics/${id}`, session.access_token);
-      if (!res.ok) {
+    async function loadTopic() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/login");
+          return;
+        }
+        const res = await fetchWithAuth(`/topics/${id}`, session.access_token);
+        if (!res.ok) {
+          setError("取得に失敗しました");
+          return;
+        }
+        const data = await res.json();
+        setTopic(data);
+        setContent(data.latest_summary?.content ?? "");
+      } catch {
         setError("取得に失敗しました");
+      } finally {
         setLoading(false);
-        return;
       }
-      const data = await res.json();
-      setTopic(data);
-      setContent(data.latest_summary?.content ?? "");
-      setLoading(false);
-    });
+    }
+
+    void loadTopic();
   }, [id, router]);
 
   async function handleSave(e: React.SubmitEvent<HTMLFormElement>) {
@@ -87,6 +96,8 @@ export default function TopicDetailPage({
           },
         };
       });
+    } catch {
+      setSaveError("保存に失敗しました");
     } finally {
       setSaving(false);
     }
