@@ -1,4 +1,9 @@
 type TopicStatus = "not_started" | "in_progress" | "completed";
+const TOPIC_STATUSES: TopicStatus[] = [
+  "not_started",
+  "in_progress",
+  "completed",
+];
 
 const STATUS_LABEL: Record<TopicStatus, string> = {
   not_started: "未開始",
@@ -7,7 +12,7 @@ const STATUS_LABEL: Record<TopicStatus, string> = {
 };
 
 function isTopicStatus(status: string): status is TopicStatus {
-  return status in STATUS_LABEL;
+  return TOPIC_STATUSES.includes(status as TopicStatus);
 }
 
 export function getStatusLabel(status: string): string {
