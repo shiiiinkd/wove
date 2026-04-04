@@ -43,10 +43,12 @@ app.route("/curricula", curriculaRouter);
 app.route("/topics", topicsRouter);
 app.route("/summaries", summariesRouter);
 
+const port = Number(process.env.PORT ?? 8080);
+
 serve(
   {
     fetch: app.fetch,
-    port: 8080,
+    port,
   },
   (info) => {
     console.log(`Server is running on http://localhost:${info.port}`);
