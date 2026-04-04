@@ -15,6 +15,7 @@ export default function TopicEditPage({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -26,7 +27,7 @@ export default function TopicEditPage({
       }
       const res = await fetchWithAuth(`/topics/${id}`, session.access_token);
       if (!res.ok) {
-        setError("取得に失敗しました");
+        setFetchError("取得に失敗しました");
         setLoading(false);
         return;
       }
@@ -64,6 +65,18 @@ export default function TopicEditPage({
   }
 
   if (loading) return <p className="p-8">読み込み中...</p>;
+  if (fetchError)
+    return (
+      <div className="max-w-2xl mx-auto p-8 space-y-4">
+        <Link
+          href={`/topics/${id}`}
+          className="text-sm text-blue-600 hover:underline"
+        >
+          ← 詳細に戻る
+        </Link>
+        <p className="text-red-500">{fetchError}</p>
+      </div>
+    );
 
   return (
     <div className="max-w-2xl mx-auto p-8 space-y-6">
