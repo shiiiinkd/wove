@@ -41,23 +41,26 @@ export default function TopicEditPage({
     e.preventDefault();
     setSaving(true);
     setError(null);
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
-      router.push("/login");
-      return;
-    }
-    const res = await fetchWithAuth(`/topics/${id}`, session.access_token, {
-      method: "PATCH",
-      body: JSON.stringify({ title, description }),
-    });
-    if (!res.ok) {
-      setError("更新に失敗しました");
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+      const res = await fetchWithAuth(`/topics/${id}`, session.access_token, {
+        method: "PATCH",
+        body: JSON.stringify({ title, description }),
+      });
+      if (!res.ok) {
+        setError("更新に失敗しました");
+        return;
+      }
+      router.push(`/topics/${id}`);
+    } finally {
       setSaving(false);
-      return;
     }
-    router.push(`/topics/${id}`);
   }
 
   if (loading) return <p className="p-8">読み込み中...</p>;
