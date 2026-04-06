@@ -10,6 +10,7 @@ export function generateBaseSlug(title: string): string {
 }
 
 // Supabase クライアントを受け取り、(user_id, slug) で重複チェックしてユニークな slug を返す
+// slug は最大 50 文字に収まるよう保証する
 export async function resolveUniqueSlug(
   supabase: SupabaseClient,
   userId: string,
@@ -25,11 +26,12 @@ export async function resolveUniqueSlug(
       .eq("user_id", userId)
       .maybeSingle();
     if (error) {
-      console.error(error);
-      return slug;
+      throw error;
     }
     if (data) {
-      slug = `${baseSlug}-${suffix}`;
+      const suffixStr = `-${suffix}`;
+      const maxBaseLen = 50 - suffixStr.length;
+      slug = `${baseSlug.slice(0, maxBaseLen)}${suffixStr}`;
       suffix++;
     } else {
       return slug;

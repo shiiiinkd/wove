@@ -134,36 +134,59 @@ curriculaRouter.post("/", async (c) => {
     return c.json({ message: "Invalid token" }, 401);
   }
   const supabaseForUser = createSupabaseClientWithToken(token);
-  const body = await c.req.json<{
+
+  let body: {
     title: string;
     description: string;
     topics: { title: string; description: string; orderIndex: number }[];
-  }>();
+  };
+  try {
+    body = await c.req.json<{
+      title: string;
+      description: string;
+      topics: { title: string; description: string; orderIndex: number }[];
+    }>();
+  } catch {
+    return c.json({ message: "Invalid JSON body" }, 400);
+  }
+
   const { title, description, topics } = body;
 
   //バリデーションチェック
-  if (!title || !description || !topics) {
-    return c.json(
-      { message: "title, description, and topics are required" },
-      400,
-    );
-  }
-  if (!title || !description) {
-    return c.json({ message: "title and description are required" }, 400);
-  }
-  if (!topics) {
+  const missingTitleOrDescription = !title || !description;
+  const missingTopics = !topics;
+  if (missingTitleOrDescription || missingTopics) {
+    if (missingTitleOrDescription && missingTopics) {
+      return c.json(
+        { message: "title, description, and topics are required" },
+        400,
+      );
+    }
+    if (missingTitleOrDescription) {
+      return c.json({ message: "title and description are required" }, 400);
+    }
     return c.json({ message: "topics are required" }, 400);
+  }
+  if (!Array.isArray(topics)) {
+    return c.json({ message: "topics must be an array" }, 400);
   }
   if (topics.length === 0) {
     return c.json({ message: "topics require at least one topic" }, 400);
   }
   if (
     topics.some(
-      (topic) => !topic.title || !topic.description || !topic.orderIndex,
+      (topic) =>
+        !topic.title ||
+        !topic.description ||
+        !Number.isInteger(topic.orderIndex) ||
+        topic.orderIndex < 1,
     )
   ) {
     return c.json(
-      { message: "topics must have title, description, and orderIndex" },
+      {
+        message:
+          "topics must have title, description, and orderIndex (positive integer)",
+      },
       400,
     );
   }
@@ -173,8 +196,14 @@ curriculaRouter.post("/", async (c) => {
     return c.json({ message: "topics orderIndex must be unique" }, 400);
   }
 
-  const baseSlug = generateBaseSlug(title);
-  const slug = await resolveUniqueSlug(supabaseForUser, user.id, baseSlug);
+  let slug: string;
+  try {
+    const baseSlug = generateBaseSlug(title);
+    slug = await resolveUniqueSlug(supabaseForUser, user.id, baseSlug);
+  } catch (err) {
+    console.error(err);
+    return c.json({ message: "Failed to generate slug" }, 500);
+  }
 
   const { data: curriculumData, error: curriculumError } = await supabaseForUser
     .from("curricula")
@@ -200,6 +229,22 @@ curriculaRouter.post("/", async (c) => {
     .select();
   if (topicsError) {
     console.error(topicsError);
+
+    const { error: rollbackError } = await supabaseForUser
+      .from("curricula")
+      .delete()
+      .eq("id", curriculumData.id);
+
+    if (rollbackError) {
+      console.error(rollbackError);
+      return c.json(
+        {
+          message:
+            "Failed to create topics and failed to rollback curriculum",
+        },
+        500,
+      );
+    }
     return c.json({ message: "Failed to create topics" }, 500);
   }
   return c.json(
