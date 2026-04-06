@@ -19,6 +19,10 @@ import {
   getCurrentUserFromToken,
 } from "../auth/auth.js";
 import { generateBaseSlug, resolveUniqueSlug } from "../lib/slug.js";
+
+const CURRICULUM_SELECT_COLUMNS = "id,title,slug,description,created_at";
+const TOPIC_SELECT_COLUMNS = "id,curriculum_id,title,description,order_index,status";
+const SLUG_INSERT_RETRY_LIMIT = 5;
 const curriculaRouter = new Hono();
 
 // 一覧は新しい作成順で返す（画面上で最近の学習を先に確認しやすくするため）
@@ -153,7 +157,11 @@ curriculaRouter.post("/", async (c) => {
   const { title, description, topics } = body;
 
   //バリデーションチェック
-  const missingTitleOrDescription = !title || !description;
+  const missingTitleOrDescription =
+    typeof title !== "string" ||
+    typeof description !== "string" ||
+    title.trim().length === 0 ||
+    description.trim().length === 0;
   const missingTopics = !topics;
   if (missingTitleOrDescription || missingTopics) {
     if (missingTitleOrDescription && missingTopics) {
@@ -176,8 +184,12 @@ curriculaRouter.post("/", async (c) => {
   if (
     topics.some(
       (topic) =>
-        !topic.title ||
-        !topic.description ||
+        !topic ||
+        typeof topic !== "object" ||
+        typeof topic.title !== "string" ||
+        typeof topic.description !== "string" ||
+        topic.title.trim().length === 0 ||
+        topic.description.trim().length === 0 ||
         !Number.isInteger(topic.orderIndex) ||
         topic.orderIndex < 1,
     )
@@ -196,56 +208,162 @@ curriculaRouter.post("/", async (c) => {
     return c.json({ message: "topics orderIndex must be unique" }, 400);
   }
 
-  let slug: string;
-  try {
-    const baseSlug = generateBaseSlug(title);
-    slug = await resolveUniqueSlug(supabaseForUser, user.id, baseSlug);
-  } catch (err) {
-    console.error(err);
-    return c.json({ message: "Failed to generate slug" }, 500);
-  }
+  const normalizedTitle = title.trim();
+  const normalizedDescription = description.trim();
+  const normalizedTopics = topics.map((topic) => ({
+    ...topic,
+    title: topic.title.trim(),
+    description: topic.description.trim(),
+  }));
 
-  const { data: curriculumData, error: curriculumError } = await supabaseForUser
-    .from("curricula")
-    .insert({ user_id: user.id, title, description, slug })
-    .select()
-    .single();
+  const baseSlug = generateBaseSlug(normalizedTitle);
+  let curriculumData:
+    | {
+        id: string;
+        title: string;
+        slug: string;
+        description: string;
+        created_at: string;
+      }
+    | null = null;
+  let topicsData:
+    | {
+        id: string;
+        curriculum_id: string;
+        title: string;
+        description: string;
+        order_index: number;
+        status: string;
+      }[]
+    | null = null;
+  let shouldFallbackToManualInsert = false;
 
-  if (curriculumError) {
-    console.error(curriculumError);
-    return c.json({ message: "Failed to create curriculum" }, 500);
-  }
-  const { data: topicsData, error: topicsError } = await supabaseForUser
-    .from("topics")
-    .insert(
-      topics.map((t) => ({
-        curriculum_id: curriculumData.id,
-        title: t.title,
-        description: t.description,
-        order_index: t.orderIndex,
-        status: "not_started",
-      })),
-    )
-    .select();
-  if (topicsError) {
-    console.error(topicsError);
+  for (let attempt = 0; attempt < SLUG_INSERT_RETRY_LIMIT; attempt++) {
+    let slug: string;
+    try {
+      slug = await resolveUniqueSlug(supabaseForUser, user.id, baseSlug);
+    } catch (err) {
+      console.error(err);
+      return c.json({ message: "Failed to generate slug" }, 500);
+    }
 
-    const { error: rollbackError } = await supabaseForUser
-      .from("curricula")
-      .delete()
-      .eq("id", curriculumData.id);
-
-    if (rollbackError) {
-      console.error(rollbackError);
+    const { data: rpcData, error: rpcError } = await supabaseForUser.rpc(
+      "create_curriculum_with_topics",
+      {
+        p_user_id: user.id,
+        p_title: normalizedTitle,
+        p_description: normalizedDescription,
+        p_slug: slug,
+        p_topics: normalizedTopics.map((t) => ({
+          title: t.title,
+          description: t.description,
+          order_index: t.orderIndex,
+          status: "not_started",
+        })),
+      },
+    );
+    if (!rpcError) {
+      const created = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+      const rpcCurriculum = created?.curriculum ?? null;
+      const rpcTopics = created?.topics ?? [];
+      if (!rpcCurriculum) {
+        return c.json({ message: "Failed to create curriculum" }, 500);
+      }
       return c.json(
         {
-          message:
-            "Failed to create topics and failed to rollback curriculum",
+          message: "Curriculum created successfully",
+          curriculum: rpcCurriculum,
+          topics: rpcTopics,
         },
-        500,
+        201,
       );
     }
-    return c.json({ message: "Failed to create topics" }, 500);
+    if (rpcError.code === "PGRST202") {
+      shouldFallbackToManualInsert = true;
+      break;
+    }
+    if (rpcError.code === "23505") {
+      continue;
+    }
+    console.error(rpcError);
+    return c.json({ message: "Failed to create curriculum" }, 500);
+  }
+
+  if (!shouldFallbackToManualInsert) {
+    return c.json({ message: "Failed to create curriculum" }, 500);
+  }
+
+  for (let attempt = 0; attempt < SLUG_INSERT_RETRY_LIMIT; attempt++) {
+    let slug: string;
+    try {
+      slug = await resolveUniqueSlug(supabaseForUser, user.id, baseSlug);
+    } catch (err) {
+      console.error(err);
+      return c.json({ message: "Failed to generate slug" }, 500);
+    }
+
+    const { data, error } = await supabaseForUser
+      .from("curricula")
+      .insert({
+        user_id: user.id,
+        title: normalizedTitle,
+        description: normalizedDescription,
+        slug,
+      })
+      .select(CURRICULUM_SELECT_COLUMNS)
+      .single();
+
+    if (!error) {
+      curriculumData = data;
+      break;
+    }
+
+    if (error.code === "23505") {
+      continue;
+    }
+
+    console.error(error);
+    return c.json({ message: "Failed to create curriculum" }, 500);
+  }
+
+  if (!curriculumData) {
+    return c.json({ message: "Failed to create curriculum" }, 500);
+  }
+
+  {
+    const { data, error } = await supabaseForUser
+      .from("topics")
+      .insert(
+        normalizedTopics.map((t) => ({
+          curriculum_id: curriculumData!.id,
+          title: t.title,
+          description: t.description,
+          order_index: t.orderIndex,
+          status: "not_started",
+        })),
+      )
+      .select(TOPIC_SELECT_COLUMNS);
+    if (error) {
+      console.error(error);
+
+      const { error: rollbackError } = await supabaseForUser
+        .from("curricula")
+        .delete()
+        .eq("id", curriculumData.id);
+
+      if (rollbackError) {
+        console.error(rollbackError);
+        return c.json(
+          {
+            message:
+              "Failed to create topics and failed to rollback curriculum",
+          },
+          500,
+        );
+      }
+      return c.json({ message: "Failed to create topics" }, 500);
+    }
+    topicsData = data;
   }
   return c.json(
     {
