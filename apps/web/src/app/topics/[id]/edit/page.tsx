@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -8,9 +8,9 @@ import { fetchWithAuth } from "@/lib/api";
 export default function TopicEditPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const { id } = params;
+  const { id } = use(params);
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
