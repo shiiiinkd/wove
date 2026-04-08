@@ -231,7 +231,7 @@ topics 保存時の `status` はすべて以下で統一する。
 入力不正。例:
 
 - topics が空
-- topics orderIndex must be unique
+- orderIndex 重複（エラー例: `topics orderIndex must be unique`）
 - 文字数超過（上限は DB 定義に合わせる）
 
 ### 401 Unauthorized
