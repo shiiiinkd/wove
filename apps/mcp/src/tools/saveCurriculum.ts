@@ -7,12 +7,13 @@ const TopicSchema = z.object({
   orderIndex: z.number().int().min(1),
 });
 
-const SaveCurriculumSchema = z
-  .object({
-    title: z.string().min(1).max(100),
-    description: z.string().min(1).max(1000),
-    topics: z.array(TopicSchema).min(1),
-  })
+const SaveCurriculumBaseSchema = z.object({
+  title: z.string().min(1).max(100),
+  description: z.string().min(1).max(1000),
+  topics: z.array(TopicSchema).min(1),
+});
+
+const SaveCurriculumSchema = SaveCurriculumBaseSchema
   .superRefine((data, ctx) => {
     const indices = data.topics.map((t) => t.orderIndex);
     const uniqueIndices = new Set(indices);
@@ -28,24 +29,20 @@ const SaveCurriculumSchema = z
 
 type SaveCurriculumInput = z.infer<typeof SaveCurriculumSchema>;
 
+const SaveCurriculumResponseSchema = z.object({
+  curriculum: z.object({
+    title: z.string(),
+    slug: z.string(),
+  }),
+  topics: z.array(z.unknown()),
+});
+
 export function registerSaveCurriculum(server: McpServer) {
   server.registerTool(
     "save_curriculum",
     {
       description: "カリキュラムと topics を Wove に保存する",
-      inputSchema: {
-        title: z.string().min(1).max(100),
-        description: z.string().min(1).max(1000),
-        topics: z
-          .array(
-            z.object({
-              title: z.string().min(1).max(100),
-              description: z.string().min(1).max(500),
-              orderIndex: z.number().int().min(1),
-            }),
-          )
-          .min(1),
-      },
+      inputSchema: SaveCurriculumBaseSchema.shape,
     },
     async (rawInput) => {
       const parsed = SaveCurriculumSchema.safeParse(rawInput);
@@ -133,10 +130,20 @@ export function registerSaveCurriculum(server: McpServer) {
         };
       }
 
-      const result = data as {
-        curriculum: { title: string; slug: string };
-        topics: unknown[];
-      };
+      const parsedResponse = SaveCurriculumResponseSchema.safeParse(data);
+      if (!parsedResponse.success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: API レスポンス形式が不正です",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const result = parsedResponse.data;
 
       return {
         content: [
