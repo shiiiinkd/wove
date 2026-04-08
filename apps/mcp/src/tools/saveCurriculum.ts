@@ -34,7 +34,13 @@ const SaveCurriculumResponseSchema = z.object({
     title: z.string(),
     slug: z.string(),
   }),
-  topics: z.array(z.unknown()),
+  topics: z.array(
+    z
+      .object({
+        title: z.string(),
+      })
+      .passthrough(),
+  ),
 });
 
 export function registerSaveCurriculum(server: McpServer) {
@@ -136,7 +142,7 @@ export function registerSaveCurriculum(server: McpServer) {
           content: [
             {
               type: "text",
-              text: "Error: API レスポンス形式が不正です",
+              text: `Error: API レスポンス形式が不正です: ${parsedResponse.error.message}`,
             },
           ],
           isError: true,
