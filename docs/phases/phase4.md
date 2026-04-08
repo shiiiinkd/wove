@@ -134,7 +134,7 @@ type SaveCurriculumInput = {
   topics: {
     title: string;
     description: string;
-    order_index: number;
+    orderIndex: number;
   }[];
 };
 ```
@@ -146,8 +146,8 @@ type SaveCurriculumInput = {
 - `topics` は 1 件以上必須
 - `topics[].title` は必須
 - `topics[].description` は必須
-- `topics[].order_index` は必須（1 以上の整数）
-- `topics` 内の `order_index` は重複不可
+- `topics[].orderIndex` は必須（1 以上の整数）
+- `topics` 内の `orderIndex` は重複不可
 
 ## Hono 側保存 API の役割
 
@@ -176,12 +176,12 @@ MCP 側の `save_curriculum` と同じ構造を受け取る。
     {
       "title": "TCP/IP",
       "description": "インターネット通信の基盤となる考え方を学ぶ",
-      "order_index": 1
+      "orderIndex": 1
     },
     {
       "title": "DNS",
       "description": "ドメイン名とIPアドレスの対応付けの仕組みを学ぶ",
-      "order_index": 2
+      "orderIndex": 2
     }
   ]
 }
@@ -231,7 +231,7 @@ topics 保存時の `status` はすべて以下で統一する。
 入力不正。例:
 
 - topics が空
-- order_index 重複
+- topics orderIndex must be unique
 - 文字数超過（上限は DB 定義に合わせる）
 
 ### 401 Unauthorized
