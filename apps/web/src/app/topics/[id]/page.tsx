@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchWithAuth } from "@/lib/api";
 import { getStatusLabel } from "@/lib/status";
-import type { IdPageParams } from "@/types/routeParams";
+import type { IdPageProps } from "@/types/routeParams";
 
 type LatestSummary = { id: string; content: string; created_at: string } | null;
 type Topic = {
@@ -19,9 +19,7 @@ type Topic = {
 
 export default function TopicDetailPage({
   params,
-}: {
-  params: IdPageParams;
-}) {
+}: IdPageProps) {
   const { id } = use(params);
   const router = useRouter();
   const [topic, setTopic] = useState<Topic | null>(null);

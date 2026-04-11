@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchWithAuth } from "@/lib/api";
 import { getStatusLabel } from "@/lib/status";
-import type { IdPageParams } from "@/types/routeParams";
+import type { IdPageProps } from "@/types/routeParams";
 
 type Topic = {
   id: string;
@@ -22,9 +22,7 @@ type Curriculum = {
 
 export default function CurriculumDetailPage({
   params,
-}: {
-  params: IdPageParams;
-}) {
+}: IdPageProps) {
   const { id } = use(params);
   const router = useRouter();
   const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
