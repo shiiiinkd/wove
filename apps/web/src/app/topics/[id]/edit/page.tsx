@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchWithAuth } from "@/lib/api";
+import type { IdPageParams } from "@/types/routeParams";
 
 export default function TopicEditPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: IdPageParams;
 }) {
   const { id } = use(params);
   const router = useRouter();
