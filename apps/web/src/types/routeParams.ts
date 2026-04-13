@@ -1,4 +1,4 @@
-// Next.js 15 dynamic route params are received as Promises.
+// Dynamic route params may be received as Promises in Next.js App Router.
 export type IdPageProps = {
   params: Promise<{ id: string }>;
 };
