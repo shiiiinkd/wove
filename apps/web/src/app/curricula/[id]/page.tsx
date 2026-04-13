@@ -1,10 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchWithAuth } from "@/lib/api";
 import { getStatusLabel } from "@/lib/status";
+import type { IdPageProps } from "@/types/routeParams";
 
 type Topic = {
   id: string;
@@ -21,10 +22,8 @@ type Curriculum = {
 
 export default function CurriculumDetailPage({
   params,
-}: {
-  params: { id: string };
-}) {
-  const { id } = params;
+}: IdPageProps) {
+  const { id } = use(params);
   const router = useRouter();
   const [curriculum, setCurriculum] = useState<Curriculum | null>(null);
   const [topics, setTopics] = useState<Topic[]>([]);
