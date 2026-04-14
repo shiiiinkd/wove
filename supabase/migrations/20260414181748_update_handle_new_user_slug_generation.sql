@@ -8,7 +8,7 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO pg_catalog
 AS $function$
 begin
   insert into public.profiles (id, user_slug)
