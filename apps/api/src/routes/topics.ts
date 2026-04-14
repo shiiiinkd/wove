@@ -77,9 +77,11 @@ topicsRouter.patch("/:id", async (c) => {
   let body: { title?: string; description?: string };
   try {
     body = await c.req.json<{ title?: string; description?: string }>();
-  } catch {
-    // JSONパースエラーのみcatchする
-    return c.json({ message: "Invalid JSON body" }, 400);
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      return c.json({ message: "Invalid JSON body" }, 400);
+    }
+    throw e;
   }
   const { title, description } = body;
 

@@ -38,9 +38,11 @@ summariesRouter.post("/", async (c) => {
   let body: { topic_id?: string; content?: string };
   try {
     body = await c.req.json<{ topic_id?: string; content?: string }>();
-  } catch {
-    // JSONパースエラーのみcatchする
-    return c.json({ message: "Invalid JSON body" }, 400);
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      return c.json({ message: "Invalid JSON body" }, 400);
+    }
+    throw e;
   }
   const { topic_id, content } = body;
 
