@@ -255,6 +255,8 @@ end;
 $function$
 ;
 
+set check_function_bodies = on;
+
 grant delete on table "public"."curricula" to "anon";
 
 grant insert on table "public"."curricula" to "anon";
