@@ -21,7 +21,8 @@ import {
 import { generateBaseSlug, resolveUniqueSlug } from "../lib/slug.js";
 
 const CURRICULUM_SELECT_COLUMNS = "id,title,slug,description,created_at";
-const TOPIC_SELECT_COLUMNS = "id,curriculum_id,title,description,order_index,status";
+const TOPIC_SELECT_COLUMNS =
+  "id,curriculum_id,title,description,order_index,status";
 const SLUG_INSERT_RETRY_LIMIT = 5;
 const curriculaRouter = new Hono();
 
@@ -150,8 +151,11 @@ curriculaRouter.post("/", async (c) => {
       description: string;
       topics: { title: string; description: string; orderIndex: number }[];
     }>();
-  } catch {
-    return c.json({ message: "Invalid JSON body" }, 400);
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      return c.json({ message: "Invalid JSON body" }, 400);
+    }
+    throw e;
   }
 
   const { title, description, topics } = body;
@@ -217,15 +221,13 @@ curriculaRouter.post("/", async (c) => {
   }));
 
   const baseSlug = generateBaseSlug(normalizedTitle);
-  let curriculumData:
-    | {
-        id: string;
-        title: string;
-        slug: string;
-        description: string;
-        created_at: string;
-      }
-    | null = null;
+  let curriculumData: {
+    id: string;
+    title: string;
+    slug: string;
+    description: string;
+    created_at: string;
+  } | null = null;
   let topicsData:
     | {
         id: string;

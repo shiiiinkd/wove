@@ -34,7 +34,16 @@ summariesRouter.post("/", async (c) => {
     return c.json({ message: "Invalid token" }, 401);
   }
 
-  const body = await c.req.json<{ topic_id?: string; content?: string }>();
+  // bodyは全体で必要だが、try内で再代入が必要なためletで宣言。
+  let body: { topic_id?: string; content?: string };
+  try {
+    body = await c.req.json<{ topic_id?: string; content?: string }>();
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      return c.json({ message: "Invalid JSON body" }, 400);
+    }
+    throw e;
+  }
   const { topic_id, content } = body;
 
   if (!topic_id || !content) {
