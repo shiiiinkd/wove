@@ -13,19 +13,20 @@ const SaveCurriculumBaseSchema = z.object({
   topics: z.array(TopicSchema).min(1),
 });
 
-const SaveCurriculumSchema = SaveCurriculumBaseSchema
-  .superRefine((data, ctx) => {
+const SaveCurriculumSchema = SaveCurriculumBaseSchema.superRefine(
+  (data, ctx) => {
     const indices = data.topics.map((t) => t.orderIndex);
     const uniqueIndices = new Set(indices);
 
     if (uniqueIndices.size !== indices.length) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["topics"],
         message: "topics 内の orderIndex は重複不可です",
       });
     }
-  });
+  },
+);
 
 type SaveCurriculumInput = z.infer<typeof SaveCurriculumSchema>;
 
@@ -39,7 +40,7 @@ const SaveCurriculumResponseSchema = z.object({
       .object({
         title: z.string(),
       })
-      .passthrough(),
+      .loose(),
   ),
 });
 
