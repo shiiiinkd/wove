@@ -19,6 +19,12 @@ import {
   getCurrentUserFromToken,
 } from "../auth/auth.js";
 import { generateBaseSlug, resolveUniqueSlug } from "../lib/slug.js";
+import {
+  getCurricula,
+  getCurriculaById,
+} from "../services/curriculum-service.js";
+import { AppError } from "../lib/errors.js";
+import { HTTPException } from "hono/http-exception";
 
 const CURRICULUM_SELECT_COLUMNS = "id,title,slug,description,created_at";
 const TOPIC_SELECT_COLUMNS =
@@ -30,22 +36,24 @@ const curriculaRouter = new Hono();
 curriculaRouter.get("/", async (c) => {
   const token = await getAccessTokenFromHeader(c);
   if (!token) {
-    return c.json({ message: "Unauthorized" }, 401);
+    throw new HTTPException(401, { message: "Unauthorized" });
   }
   const user = await getCurrentUserFromToken(token);
   if (!user) {
-    return c.json({ message: "Invalid token" }, 401);
+    throw new HTTPException(401, { message: "Invalid token error" });
   }
-  const supabaseForUser = createSupabaseClientWithToken(token);
-  const { data, error } = await supabaseForUser
-    .from("curricula")
-    .select("id,title,slug,description,created_at")
-    .order("created_at", { ascending: false });
-  if (error) {
-    console.error(error);
-    return c.json({ message: "Failed to fetch curricula" }, 500);
+  try {
+    const data = await getCurricula(token);
+    return c.json(data, 200);
+  } catch (err) {
+    if (err instanceof AppError) {
+      throw new HTTPException(err.status, {
+        message: err.message,
+        cause: err,
+      });
+    }
+    throw err;
   }
-  return c.json(data, 200);
 });
 
 // Get a single curriculum
@@ -54,31 +62,24 @@ curriculaRouter.get("/:id", async (c) => {
 
   const token = await getAccessTokenFromHeader(c);
   if (!token) {
-    return c.json({ message: "Unauthorized" }, 401);
+    throw new HTTPException(401, { message: "Unauthorized" });
   }
   const user = await getCurrentUserFromToken(token);
   if (!user) {
-    return c.json({ message: "Invalid token" }, 401);
+    throw new HTTPException(401, { message: "Invalid token error" });
   }
-  const supabaseForUser = createSupabaseClientWithToken(token);
-
-  const { data, error } = await supabaseForUser
-    .from("curricula")
-    .select("id,title,slug,description,created_at")
-    .eq("id", id)
-    .single();
-
-  if (error) {
-    console.error(error);
-    if (error.code === "PGRST116") {
-      return c.json({ message: "Curriculum not found" }, 404);
+  try {
+    const data = await getCurriculaById(token, id);
+    return c.json(data, 200);
+  } catch (err) {
+    if (err instanceof AppError) {
+      throw new HTTPException(err.status, {
+        message: err.message,
+        cause: err,
+      });
     }
-    if (error.code === "22P02") {
-      return c.json({ message: "Invalid curriculum id" }, 400);
-    }
-    return c.json({ message: "Failed to fetch curriculum" }, 500);
+    throw err;
   }
-  return c.json(data, 200);
 });
 
 // 業務ルール: topics は order_index で順序管理するため ASC（昇順） で返す。
