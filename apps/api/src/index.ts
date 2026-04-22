@@ -13,6 +13,7 @@ import { Hono } from "hono";
 import curriculaRouter from "./routes/curricula.js";
 import topicsRouter from "./routes/topics.js";
 import summariesRouter from "./routes/summaries.js";
+import { HTTPException } from "hono/http-exception";
 
 const app = new Hono();
 
@@ -43,6 +44,14 @@ app.use(
     maxAge: 86400,
   }),
 );
+
+app.onError((err, c) => {
+  if (err instanceof HTTPException) {
+    return c.json({ message: err.message }, err.status);
+  }
+  console.error(err);
+  return c.json({ message: "Internal server error" }, 500);
+});
 
 // routes
 app.get("/", (c) => {
