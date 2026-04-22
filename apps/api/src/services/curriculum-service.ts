@@ -6,6 +6,19 @@
 
 import { createSupabaseClientWithToken } from "../lib/supabase.js";
 import { AppError } from "../lib/errors.js";
+import type { CurriculumInput } from "../schemas/curriculum.js";
+import type {
+  CurriculumData,
+  TopicData,
+  CreateCurriculumResult,
+} from "./curriculum-service.types.js";
+import { generateBaseSlug, resolveUniqueSlug } from "../lib/slug.js";
+import type { User } from "@supabase/supabase-js";
+
+const CURRICULUM_SELECT_COLUMNS = "id,title,slug,description,created_at";
+const TOPIC_SELECT_COLUMNS =
+  "id,curriculum_id,title,description,order_index,status";
+const SLUG_INSERT_RETRY_LIMIT = 5;
 
 export const getCurricula = async (token: string) => {
   const supabaseForUser = createSupabaseClientWithToken(token);
@@ -64,4 +77,194 @@ export const getTopicsByCurriculumId = async (token: string, id: string) => {
     }
   }
   return data;
+};
+
+export const saveCurriculumAndTopics = async (
+  token: string,
+  user: User,
+  body: CurriculumInput,
+): Promise<CreateCurriculumResult> => {
+  const supabaseForUser = createSupabaseClientWithToken(token);
+
+  const { title, description, topics } = body;
+
+  //バリデーションチェック
+  const missingTitleOrDescription =
+    typeof title !== "string" ||
+    typeof description !== "string" ||
+    title.trim().length === 0 ||
+    description.trim().length === 0;
+  const missingTopics = !topics;
+  if (missingTitleOrDescription || missingTopics) {
+    if (missingTitleOrDescription && missingTopics) {
+      throw new AppError("title, description, and topics are required", 400);
+    }
+    if (missingTitleOrDescription) {
+      throw new AppError("title and description are required", 400);
+    }
+    throw new AppError("topics are required", 400);
+  }
+  if (!Array.isArray(topics)) {
+    throw new AppError("topics must be an array", 400);
+  }
+  if (topics.length === 0) {
+    throw new AppError("topics require at least one topic", 400);
+  }
+  if (
+    topics.some(
+      (topic) =>
+        !topic ||
+        typeof topic !== "object" ||
+        typeof topic.title !== "string" ||
+        typeof topic.description !== "string" ||
+        topic.title.trim().length === 0 ||
+        topic.description.trim().length === 0 ||
+        !Number.isInteger(topic.orderIndex) ||
+        topic.orderIndex < 1,
+    )
+  ) {
+    throw new AppError(
+      "topics must have title, description, and orderIndex (positive integer)",
+      400,
+    );
+  }
+  //orderIndexの重複チェック
+  const orderIndexSet = new Set(topics.map((t) => t.orderIndex));
+  if (orderIndexSet.size !== topics.length) {
+    throw new AppError("topics orderIndex must be unique", 400);
+  }
+
+  const normalizedTitle = title.trim();
+  const normalizedDescription = description.trim();
+  const normalizedTopics = topics.map((topic) => ({
+    ...topic,
+    title: topic.title.trim(),
+    description: topic.description.trim(),
+  }));
+
+  const baseSlug = generateBaseSlug(normalizedTitle);
+  let curriculumData: CurriculumData | null = null;
+  let topicsData: TopicData[] | null = null;
+  let shouldFallbackToManualInsert = false;
+
+  for (let attempt = 0; attempt < SLUG_INSERT_RETRY_LIMIT; attempt++) {
+    let slug: string;
+    try {
+      slug = await resolveUniqueSlug(supabaseForUser, user.id, baseSlug);
+    } catch (err) {
+      throw new AppError("Failed to generate slug", 500);
+    }
+
+    const { data: rpcData, error: rpcError } = await supabaseForUser.rpc(
+      "create_curriculum_with_topics",
+      {
+        p_user_id: user.id,
+        p_title: normalizedTitle,
+        p_description: normalizedDescription,
+        p_slug: slug,
+        p_topics: normalizedTopics.map((t) => ({
+          title: t.title,
+          description: t.description,
+          order_index: t.orderIndex,
+          status: "not_started",
+        })),
+      },
+    );
+    if (!rpcError) {
+      const created = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+      const rpcCurriculum = created?.curriculum ?? null;
+      const rpcTopics = created?.topics ?? [];
+      if (!rpcCurriculum) {
+        throw new AppError("Failed to create curriculum", 500);
+      }
+      return {
+        curriculum: rpcCurriculum,
+        topics: rpcTopics,
+      };
+    }
+
+    if (rpcError.code === "PGRST202") {
+      shouldFallbackToManualInsert = true;
+      break;
+    }
+    if (rpcError.code === "23505") {
+      continue;
+    }
+    throw new AppError("Failed to create curriculum", 500);
+  }
+
+  if (!shouldFallbackToManualInsert) {
+    throw new AppError("Failed to create curriculum", 500);
+  }
+
+  for (let attempt = 0; attempt < SLUG_INSERT_RETRY_LIMIT; attempt++) {
+    let slug: string;
+    try {
+      slug = await resolveUniqueSlug(supabaseForUser, user.id, baseSlug);
+    } catch (err) {
+      throw new AppError("Failed to generate slug", 500);
+    }
+
+    const { data, error } = await supabaseForUser
+      .from("curricula")
+      .insert({
+        user_id: user.id,
+        title: normalizedTitle,
+        description: normalizedDescription,
+        slug,
+      })
+      .select(CURRICULUM_SELECT_COLUMNS)
+      .single();
+
+    if (!error) {
+      curriculumData = data;
+      break;
+    }
+
+    if (error.code === "23505") {
+      continue;
+    }
+
+    console.error(error);
+    throw new AppError("Failed to create curriculum", 500);
+  }
+
+  //エラー１：変数 'curriculumData' は割り当てられる前に使用されています
+  if (!curriculumData) {
+    throw new AppError("Failed to create curriculum", 500);
+  }
+
+  {
+    const { data, error } = await supabaseForUser
+      .from("topics")
+      .insert(
+        normalizedTopics.map((t) => ({
+          curriculum_id: curriculumData!.id,
+          title: t.title,
+          description: t.description,
+          order_index: t.orderIndex,
+          status: "not_started",
+        })),
+      )
+      .select(TOPIC_SELECT_COLUMNS);
+    if (error) {
+      const { error: rollbackError } = await supabaseForUser
+        .from("curricula")
+        .delete()
+        .eq("id", curriculumData.id);
+
+      if (rollbackError) {
+        throw new AppError(
+          "Failed to create topics and failed to rollback curriculum",
+          500,
+        );
+      }
+      throw new AppError("Failed to create topics", 500);
+    }
+    topicsData = data;
+  }
+  return {
+    curriculum: curriculumData,
+    topics: topicsData,
+  };
 };
