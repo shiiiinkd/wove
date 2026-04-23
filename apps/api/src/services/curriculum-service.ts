@@ -88,52 +88,6 @@ export const saveCurriculumAndTopics = async (
 
   const { title, description, topics } = body;
 
-  //バリデーションチェック
-  const missingTitleOrDescription =
-    typeof title !== "string" ||
-    typeof description !== "string" ||
-    title.trim().length === 0 ||
-    description.trim().length === 0;
-  const missingTopics = !topics;
-  if (missingTitleOrDescription || missingTopics) {
-    if (missingTitleOrDescription && missingTopics) {
-      throw new AppError("title, description, and topics are required", 400);
-    }
-    if (missingTitleOrDescription) {
-      throw new AppError("title and description are required", 400);
-    }
-    throw new AppError("topics are required", 400);
-  }
-  if (!Array.isArray(topics)) {
-    throw new AppError("topics must be an array", 400);
-  }
-  if (topics.length === 0) {
-    throw new AppError("topics require at least one topic", 400);
-  }
-  if (
-    topics.some(
-      (topic) =>
-        !topic ||
-        typeof topic !== "object" ||
-        typeof topic.title !== "string" ||
-        typeof topic.description !== "string" ||
-        topic.title.trim().length === 0 ||
-        topic.description.trim().length === 0 ||
-        !Number.isInteger(topic.orderIndex) ||
-        topic.orderIndex < 1,
-    )
-  ) {
-    throw new AppError(
-      "topics must have title, description, and orderIndex (positive integer)",
-      400,
-    );
-  }
-  //orderIndexの重複チェック
-  const orderIndexSet = new Set(topics.map((t) => t.orderIndex));
-  if (orderIndexSet.size !== topics.length) {
-    throw new AppError("topics orderIndex must be unique", 400);
-  }
-
   const normalizedTitle = title.trim();
   const normalizedDescription = description.trim();
   const normalizedTopics = topics.map((topic) => ({
