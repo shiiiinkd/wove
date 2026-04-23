@@ -6,7 +6,6 @@
 
 import { createSupabaseClientWithToken } from "../lib/supabase.js";
 import { AppError } from "../lib/errors.js";
-import type { CurriculumInput } from "../schemas/curriculum.js";
 import type {
   CurriculumData,
   TopicData,
@@ -14,6 +13,7 @@ import type {
 } from "./curriculum-service.types.js";
 import { generateBaseSlug, resolveUniqueSlug } from "../lib/slug.js";
 import type { User } from "@supabase/supabase-js";
+import type { SaveCurriculumInput } from "../schemas/curriculum.js";
 
 const CURRICULUM_SELECT_COLUMNS = "id,title,slug,description,created_at";
 const TOPIC_SELECT_COLUMNS =
@@ -82,7 +82,7 @@ export const getTopicsByCurriculumId = async (token: string, id: string) => {
 export const saveCurriculumAndTopics = async (
   token: string,
   user: User,
-  body: CurriculumInput,
+  body: SaveCurriculumInput,
 ): Promise<CreateCurriculumResult> => {
   const supabaseForUser = createSupabaseClientWithToken(token);
 

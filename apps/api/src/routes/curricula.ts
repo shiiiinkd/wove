@@ -25,7 +25,11 @@ import {
 } from "../services/curriculum-service.js";
 import { AppError } from "../lib/errors.js";
 import { HTTPException } from "hono/http-exception";
-import type { CurriculumInput } from "../schemas/curriculum.js";
+import {
+  CurriculumIdParamSchema,
+  SaveCurriculumSchema,
+} from "../schemas/curriculum.js";
+import { zValidator } from "@hono/zod-validator";
 
 const curriculaRouter = new Hono();
 
@@ -54,30 +58,46 @@ curriculaRouter.get("/", async (c) => {
 });
 
 // Get a single curriculum
-curriculaRouter.get("/:id", async (c) => {
-  const id = c.req.param("id");
-
-  const token = await getAccessTokenFromHeader(c);
-  if (!token) {
-    throw new HTTPException(401, { message: "Unauthorized" });
-  }
-  const user = await getCurrentUserFromToken(token);
-  if (!user) {
-    throw new HTTPException(401, { message: "Invalid token error" });
-  }
-  try {
-    const data = await getCurriculaById(token, id);
-    return c.json(data, 200);
-  } catch (err) {
-    if (err instanceof AppError) {
-      throw new HTTPException(err.status, {
-        message: err.message,
-        cause: err,
-      });
+curriculaRouter.get(
+  "/:id",
+  zValidator("param", CurriculumIdParamSchema, (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          message: "Invalid curriculum id",
+          issues: result.error.issues,
+        },
+        400,
+      );
     }
-    throw err;
-  }
-});
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param");
+
+    const token = await getAccessTokenFromHeader(c);
+    if (!token) {
+      throw new HTTPException(401, { message: "Unauthorized" });
+    }
+
+    const user = await getCurrentUserFromToken(token);
+    if (!user) {
+      throw new HTTPException(401, { message: "Invalid token error" });
+    }
+
+    try {
+      const data = await getCurriculaById(token, id);
+      return c.json(data, 200);
+    } catch (err) {
+      if (err instanceof AppError) {
+        throw new HTTPException(err.status, {
+          message: err.message,
+          cause: err,
+        });
+      }
+      throw err;
+    }
+  },
+);
 
 // 業務ルール: topics は order_index で順序管理するため ASC（昇順） で返す。
 curriculaRouter.get("/:id/topics", async (c) => {
@@ -106,43 +126,53 @@ curriculaRouter.get("/:id/topics", async (c) => {
 });
 
 // curriculum,topicsを保存する
-curriculaRouter.post("/", async (c) => {
-  const token = await getAccessTokenFromHeader(c);
-  if (!token) {
-    throw new HTTPException(401, { message: "Unauthorized" });
-  }
-  const user = await getCurrentUserFromToken(token);
-  if (!user) {
-    throw new HTTPException(401, { message: "Invalid token error" });
-  }
-  let body: CurriculumInput;
-  try {
-    body = await c.req.json<CurriculumInput>();
-  } catch (err) {
-    if (err instanceof SyntaxError) {
-      throw new HTTPException(400, { message: "Invalid JSON body" });
+curriculaRouter.post(
+  "/",
+  zValidator("json", SaveCurriculumSchema, (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          message: "Invalid request body",
+          issues: result.error.issues,
+        },
+        400,
+      );
     }
-    throw err;
-  }
-  try {
-    const result = await saveCurriculumAndTopics(token, user, body);
-    return c.json(
-      {
-        message: "Curriculum created successfully",
-        curriculum: result.curriculum,
-        topics: result.topics,
-      },
-      201,
-    );
-  } catch (err) {
-    if (err instanceof AppError) {
-      throw new HTTPException(err.status, {
-        message: err.message,
-        cause: err,
-      });
+  }),
+  async (c) => {
+    const token = await getAccessTokenFromHeader(c);
+    if (!token) {
+      throw new HTTPException(401, { message: "Unauthorized" });
     }
-    throw err;
-  }
-});
+
+    const user = await getCurrentUserFromToken(token);
+    if (!user) {
+      throw new HTTPException(401, { message: "Invalid token error" });
+    }
+
+    const body = c.req.valid("json");
+
+    try {
+      const result = await saveCurriculumAndTopics(token, user, body);
+
+      return c.json(
+        {
+          message: "Curriculum created successfully",
+          curriculum: result.curriculum,
+          topics: result.topics,
+        },
+        201,
+      );
+    } catch (err) {
+      if (err instanceof AppError) {
+        throw new HTTPException(err.status, {
+          message: err.message,
+          cause: err,
+        });
+      }
+      throw err;
+    }
+  },
+);
 
 export default curriculaRouter;
