@@ -104,6 +104,7 @@ export const saveCurriculumAndTopics = async (
 
   for (let attempt = 0; attempt < SLUG_INSERT_RETRY_LIMIT; attempt++) {
     let slug: string;
+
     try {
       slug = await resolveUniqueSlug(supabaseForUser, user.id, baseSlug);
     } catch (err) {
@@ -125,23 +126,30 @@ export const saveCurriculumAndTopics = async (
         })),
       },
     );
+
     if (!rpcError) {
       const created = Array.isArray(rpcData) ? rpcData[0] : rpcData;
-      const rpcCurriculum = created?.curriculum ?? null;
-      const rpcTopics = created?.topics ?? [];
+      const rpcCurriculum = (created?.curriculum ??
+        null) as CurriculumData | null;
+      const rpcTopics = (created?.topics ?? []) as TopicData[];
+
       if (!rpcCurriculum) {
         throw new AppError("Failed to create curriculum", 500);
       }
+
       return {
         curriculum: rpcCurriculum,
         topics: rpcTopics,
       };
     }
 
+    // RPC が存在しない / 見つからないときだけ手動 insert にフォールバック
     if (rpcError.code === "PGRST202") {
       shouldFallbackToManualInsert = true;
       break;
     }
+
+    // slug 競合の可能性があるので再試行
     if (rpcError.code === "23505") {
       continue;
     }
@@ -180,7 +188,6 @@ export const saveCurriculumAndTopics = async (
       continue;
     }
 
-    console.error(error);
     throw new AppError("Failed to create curriculum", 500);
   }
 
@@ -201,6 +208,7 @@ export const saveCurriculumAndTopics = async (
         })),
       )
       .select(TOPIC_SELECT_COLUMNS);
+
     if (error) {
       const { error: rollbackError } = await supabaseForUser
         .from("curricula")
