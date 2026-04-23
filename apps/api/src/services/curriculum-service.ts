@@ -229,7 +229,6 @@ export const saveCurriculumAndTopics = async (
     throw new AppError("Failed to create curriculum", 500);
   }
 
-  //エラー１：変数 'curriculumData' は割り当てられる前に使用されています
   if (!curriculumData) {
     throw new AppError("Failed to create curriculum", 500);
   }
