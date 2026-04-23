@@ -27,7 +27,7 @@ export const getCurricula = async (
 
   const { data, error } = await supabaseForUser
     .from("curricula")
-    .select("id,title,slug,description,created_at")
+    .select(CURRICULUM_SELECT_COLUMNS)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -42,7 +42,7 @@ export const getCurriculaById = async (
 
   const { data, error } = await supabaseForUser
     .from("curricula")
-    .select("id,title,slug,description,created_at")
+    .select(CURRICULUM_SELECT_COLUMNS)
     .eq("id", id)
     .single();
 
@@ -66,11 +66,16 @@ export const getTopicsByCurriculumId = async (
 
   const { data, error } = await supabaseForUser
     .from("topics")
-    .select("id,curriculum_id,title,description,order_index,status")
+    .select(TOPIC_SELECT_COLUMNS)
     .eq("curriculum_id", id)
     .order("order_index", { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    if (error.code === "22P02") {
+      throw new AppError("Invalid curriculum id", 400);
+    }
+    throw error;
+  }
   // topics が空の場合のみ、curriculum の存在確認を行う（404 セマンティクスのため）
   if (data.length === 0) {
     const { error: curriculumError } = await supabaseForUser
@@ -112,15 +117,15 @@ export const saveCurriculumAndTopics = async (
 
   const baseSlug = generateBaseSlug(normalizedTitle);
   let curriculumData: CurriculumData | null = null;
-  let topicsData: TopicData[] | null = null;
   let shouldFallbackToManualInsert = false;
 
+  // まずは RPC を使った一括保存を試す
   for (let attempt = 0; attempt < SLUG_INSERT_RETRY_LIMIT; attempt++) {
     let slug: string;
 
     try {
       slug = await resolveUniqueSlug(supabaseForUser, user.id, baseSlug);
-    } catch (err) {
+    } catch {
       throw new AppError("Failed to generate slug", 500);
     }
 
@@ -177,7 +182,7 @@ export const saveCurriculumAndTopics = async (
     let slug: string;
     try {
       slug = await resolveUniqueSlug(supabaseForUser, user.id, baseSlug);
-    } catch (err) {
+    } catch {
       throw new AppError("Failed to generate slug", 500);
     }
 
@@ -208,36 +213,34 @@ export const saveCurriculumAndTopics = async (
     throw new AppError("Failed to create curriculum", 500);
   }
 
-  {
-    const { data, error } = await supabaseForUser
-      .from("topics")
-      .insert(
-        normalizedTopics.map((t) => ({
-          curriculum_id: curriculumData!.id,
-          title: t.title,
-          description: t.description,
-          order_index: t.orderIndex,
-          status: "not_started",
-        })),
-      )
-      .select(TOPIC_SELECT_COLUMNS);
+  const { data: topicsData, error: topicsError } = await supabaseForUser
+    .from("topics")
+    .insert(
+      normalizedTopics.map((t) => ({
+        curriculum_id: curriculumData.id,
+        title: t.title,
+        description: t.description,
+        order_index: t.orderIndex,
+        status: "not_started",
+      })),
+    )
+    .select(TOPIC_SELECT_COLUMNS);
 
-    if (error) {
-      const { error: rollbackError } = await supabaseForUser
-        .from("curricula")
-        .delete()
-        .eq("id", curriculumData.id);
+  if (topicsError) {
+    const { error: rollbackError } = await supabaseForUser
+      .from("curricula")
+      .delete()
+      .eq("id", curriculumData.id);
 
-      if (rollbackError) {
-        throw new AppError(
-          "Failed to create topics and failed to rollback curriculum",
-          500,
-        );
-      }
-      throw new AppError("Failed to create topics", 500);
+    if (rollbackError) {
+      throw new AppError(
+        "Failed to create topics and failed to rollback curriculum",
+        500,
+      );
     }
-    topicsData = data;
+    throw new AppError("Failed to create topics", 500);
   }
+
   return {
     curriculum: curriculumData,
     topics: topicsData,
