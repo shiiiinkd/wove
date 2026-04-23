@@ -86,15 +86,16 @@ export const saveCurriculumAndTopics = async (
 ): Promise<CreateCurriculumResult> => {
   const supabaseForUser = createSupabaseClientWithToken(token);
 
-  const { title, description, topics } = body;
-
-  const normalizedTitle = title.trim();
-  const normalizedDescription = description.trim();
-  const normalizedTopics = topics.map((topic) => ({
-    ...topic,
-    title: topic.title.trim(),
-    description: topic.description.trim(),
-  }));
+  // route 側で SaveCurriculumSchema による検証・整形済みを前提にする
+  const normalizedTitle = body.title;
+  const normalizedDescription = body.description;
+  const normalizedTopics = [...body.topics]
+    .map((topic) => ({
+      title: topic.title,
+      description: topic.description,
+      orderIndex: topic.orderIndex,
+    }))
+    .sort((a, b) => a.orderIndex - b.orderIndex);
 
   const baseSlug = generateBaseSlug(normalizedTitle);
   let curriculumData: CurriculumData | null = null;
