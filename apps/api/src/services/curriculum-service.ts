@@ -20,17 +20,24 @@ const TOPIC_SELECT_COLUMNS =
   "id,curriculum_id,title,description,order_index,status";
 const SLUG_INSERT_RETRY_LIMIT = 5;
 
-export const getCurricula = async (token: string) => {
+export const getCurricula = async (
+  token: string,
+): Promise<CurriculumData[]> => {
   const supabaseForUser = createSupabaseClientWithToken(token);
+
   const { data, error } = await supabaseForUser
     .from("curricula")
     .select("id,title,slug,description,created_at")
     .order("created_at", { ascending: false });
+
   if (error) throw error;
   return data;
 };
 
-export const getCurriculaById = async (token: string, id: string) => {
+export const getCurriculaById = async (
+  token: string,
+  id: string,
+): Promise<CurriculumData> => {
   const supabaseForUser = createSupabaseClientWithToken(token);
 
   const { data, error } = await supabaseForUser
@@ -38,6 +45,7 @@ export const getCurriculaById = async (token: string, id: string) => {
     .select("id,title,slug,description,created_at")
     .eq("id", id)
     .single();
+
   if (error) {
     if (error.code === "PGRST116") {
       throw new AppError("Curriculum not found", 404);
@@ -50,14 +58,18 @@ export const getCurriculaById = async (token: string, id: string) => {
   return data;
 };
 
-export const getTopicsByCurriculumId = async (token: string, id: string) => {
+export const getTopicsByCurriculumId = async (
+  token: string,
+  id: string,
+): Promise<TopicData[]> => {
   const supabaseForUser = createSupabaseClientWithToken(token);
 
   const { data, error } = await supabaseForUser
     .from("topics")
-    .select("id,title,description,order_index,status")
+    .select("id,curriculum_id,title,description,order_index,status")
     .eq("curriculum_id", id)
     .order("order_index", { ascending: true });
+
   if (error) throw error;
   // topics が空の場合のみ、curriculum の存在確認を行う（404 セマンティクスのため）
   if (data.length === 0) {
@@ -66,6 +78,7 @@ export const getTopicsByCurriculumId = async (token: string, id: string) => {
       .select("id")
       .eq("id", id)
       .single();
+
     if (curriculumError) {
       if (curriculumError.code === "PGRST116") {
         throw new AppError("Curriculum not found", 404);
