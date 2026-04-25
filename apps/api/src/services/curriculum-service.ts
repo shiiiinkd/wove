@@ -8,9 +8,9 @@ import { createSupabaseClientWithToken } from "../lib/supabase.js";
 import { AppError } from "../lib/errors.js";
 import type {
   CurriculumData,
-  TopicData,
   CreateCurriculumResult,
-} from "./curriculum-service.types.js";
+} from "../types/curriculum.js";
+import type { TopicData } from "../types/topic.js";
 import { generateBaseSlug, resolveUniqueSlug } from "../lib/slug.js";
 import type { User } from "@supabase/supabase-js";
 import type { SaveCurriculumInput } from "../schemas/curriculum.js";

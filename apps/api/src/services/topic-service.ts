@@ -1,29 +1,11 @@
 import { AppError } from "../lib/errors.js";
 import { createSupabaseClientWithToken } from "../lib/supabase.js";
 import type { UpdateTopicInput } from "../schemas/topic.js";
+import type { TopicData, TopicWithLatestSummary } from "../types/topic.js";
 
 const TOPIC_SELECT_COLUMNS =
   "id,curriculum_id,title,description,order_index,status";
 const SUMMARY_SELECT_COLUMNS = "id,content,created_at";
-
-type TopicData = {
-  id: string;
-  curriculum_id: string;
-  title: string;
-  description: string | null;
-  order_index: number;
-  status: string;
-};
-
-type LatestSummaryData = {
-  id: string;
-  content: string;
-  created_at: string;
-} | null;
-
-export type TopicWithLatestSummary = TopicData & {
-  latest_summary: LatestSummaryData;
-};
 
 export const getTopicById = async (
   token: string,

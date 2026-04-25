@@ -1,14 +1,7 @@
 import { AppError } from "../lib/errors.js";
 import { createSupabaseClientWithToken } from "../lib/supabase.js";
 import type { SaveSummaryInput } from "../schemas/summary.js";
-
-type SummaryData = {
-  id: string;
-  topic_id: string;
-  content: string;
-  is_latest: boolean;
-  created_at: string;
-};
+import type { SummaryData } from "../types/summary.js";
 
 export const saveSummary = async (
   token: string,
