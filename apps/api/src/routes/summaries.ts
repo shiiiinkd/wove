@@ -14,10 +14,7 @@
  */
 
 import { Hono } from "hono";
-import {
-  getAccessTokenFromHeader,
-  getCurrentUserFromToken,
-} from "../auth/auth.js";
+import { requireAuth } from "../auth/require-auth.js";
 import { HTTPException } from "hono/http-exception";
 import { zValidator } from "@hono/zod-validator";
 import { AppError } from "../lib/errors.js";
@@ -41,15 +38,7 @@ summariesRouter.post(
     }
   }),
   async (c) => {
-    const token = await getAccessTokenFromHeader(c);
-    if (!token) {
-      throw new HTTPException(401, { message: "Unauthorized" });
-    }
-
-    const user = await getCurrentUserFromToken(token);
-    if (!user) {
-      throw new HTTPException(401, { message: "Invalid token error" });
-    }
+    const { token } = await requireAuth(c);
 
     const body = c.req.valid("json");
 

@@ -13,10 +13,7 @@
  */
 
 import { Hono } from "hono";
-import {
-  getAccessTokenFromHeader,
-  getCurrentUserFromToken,
-} from "../auth/auth.js";
+import { requireAuth } from "../auth/require-auth.js";
 import {
   getCurricula,
   getCurriculaById,
@@ -35,14 +32,8 @@ const curriculaRouter = new Hono();
 
 // 一覧は新しい作成順で返す（画面上で最近の学習を先に確認しやすくするため）
 curriculaRouter.get("/", async (c) => {
-  const token = await getAccessTokenFromHeader(c);
-  if (!token) {
-    throw new HTTPException(401, { message: "Unauthorized" });
-  }
-  const user = await getCurrentUserFromToken(token);
-  if (!user) {
-    throw new HTTPException(401, { message: "Invalid token error" });
-  }
+  const { token } = await requireAuth(c);
+
   try {
     const data = await getCurricula(token);
     return c.json(data, 200);
@@ -74,15 +65,7 @@ curriculaRouter.get(
   async (c) => {
     const { id } = c.req.valid("param");
 
-    const token = await getAccessTokenFromHeader(c);
-    if (!token) {
-      throw new HTTPException(401, { message: "Unauthorized" });
-    }
-
-    const user = await getCurrentUserFromToken(token);
-    if (!user) {
-      throw new HTTPException(401, { message: "Invalid token error" });
-    }
+    const { token } = await requireAuth(c);
 
     try {
       const data = await getCurriculaById(token, id);
@@ -103,14 +86,8 @@ curriculaRouter.get(
 curriculaRouter.get("/:id/topics", async (c) => {
   const id = c.req.param("id");
 
-  const token = await getAccessTokenFromHeader(c);
-  if (!token) {
-    throw new HTTPException(401, { message: "Unauthorized" });
-  }
-  const user = await getCurrentUserFromToken(token);
-  if (!user) {
-    throw new HTTPException(401, { message: "Invalid token error" });
-  }
+  const { token } = await requireAuth(c);
+
   try {
     const data = await getTopicsByCurriculumId(token, id);
     return c.json(data, 200);
@@ -140,15 +117,7 @@ curriculaRouter.post(
     }
   }),
   async (c) => {
-    const token = await getAccessTokenFromHeader(c);
-    if (!token) {
-      throw new HTTPException(401, { message: "Unauthorized" });
-    }
-
-    const user = await getCurrentUserFromToken(token);
-    if (!user) {
-      throw new HTTPException(401, { message: "Invalid token error" });
-    }
+    const { token, user } = await requireAuth(c);
 
     const body = c.req.valid("json");
 
