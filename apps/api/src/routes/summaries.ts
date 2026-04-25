@@ -14,71 +14,58 @@
  */
 
 import { Hono } from "hono";
-import { createSupabaseClientWithToken } from "../lib/supabase.js";
 import {
   getAccessTokenFromHeader,
   getCurrentUserFromToken,
 } from "../auth/auth.js";
+import { HTTPException } from "hono/http-exception";
+import { zValidator } from "@hono/zod-validator";
+import { AppError } from "../lib/errors.js";
+import { SaveSummarySchema } from "../schemas/summary.js";
+import { saveSummary } from "../services/summary-service.js";
 
 const summariesRouter = new Hono();
 
 // Save a new summary for a topic
-summariesRouter.post("/", async (c) => {
-  const token = await getAccessTokenFromHeader(c);
-  if (!token) {
-    return c.json({ message: "Unauthorized" }, 401);
-  }
-
-  const user = await getCurrentUserFromToken(token);
-  if (!user) {
-    return c.json({ message: "Invalid token" }, 401);
-  }
-
-  // bodyは全体で必要だが、try内で再代入が必要なためletで宣言。
-  let body: { topic_id?: string; content?: string };
-  try {
-    body = await c.req.json<{ topic_id?: string; content?: string }>();
-  } catch (e) {
-    if (e instanceof SyntaxError) {
-      return c.json({ message: "Invalid JSON body" }, 400);
+summariesRouter.post(
+  "/",
+  zValidator("json", SaveSummarySchema, (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          message: "Invalid request body",
+          issues: result.error.issues,
+        },
+        400,
+      );
     }
-    throw e;
-  }
-  const { topic_id, content } = body;
-
-  if (!topic_id || !content) {
-    return c.json({ message: "topic_id and content are required" }, 400);
-  }
-
-  const supabaseForUser = createSupabaseClientWithToken(token);
-
-  const { data, error } = await supabaseForUser.rpc(
-    "save_summary_and_complete_topic",
-    {
-      p_topic_id: topic_id,
-      p_content: content,
-    },
-  );
-
-  if (error) {
-    console.error(error);
-    if (error.code === "22P02") {
-      return c.json({ message: "Invalid topic_id format" }, 400);
+  }),
+  async (c) => {
+    const token = await getAccessTokenFromHeader(c);
+    if (!token) {
+      throw new HTTPException(401, { message: "Unauthorized" });
     }
-    if (error.code === "23503") {
-      return c.json({ message: "Topic not found" }, 404);
+
+    const user = await getCurrentUserFromToken(token);
+    if (!user) {
+      throw new HTTPException(401, { message: "Invalid token error" });
     }
-    return c.json({ message: "Failed to save summary" }, 500);
-  }
 
-  // returns table(...) なので通常は配列で返る
-  const saved = Array.isArray(data) ? data[0] : data;
+    const body = c.req.valid("json");
 
-  if (!saved) {
-    return c.json({ message: "No summary returned from RPC" }, 500);
-  }
-
-  return c.json(saved, 201);
-});
+    try {
+      const saved = await saveSummary(token, body);
+      return c.json(saved, 201);
+    } catch (err) {
+      if (err instanceof AppError) {
+        throw new HTTPException(err.status, {
+          message: err.message,
+          cause: err,
+        });
+      }
+      throw err;
+    }
+  },
+);
 
 export default summariesRouter;
