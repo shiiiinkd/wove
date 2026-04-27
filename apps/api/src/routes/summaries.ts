@@ -15,9 +15,7 @@
 
 import { Hono } from "hono";
 import { requireAuth } from "../auth/require-auth.js";
-import { HTTPException } from "hono/http-exception";
 import { zValidator } from "@hono/zod-validator";
-import { AppError } from "../lib/errors.js";
 import { SaveSummarySchema } from "../schemas/summary.js";
 import { saveSummary } from "../services/summary-service.js";
 
@@ -42,18 +40,8 @@ summariesRouter.post(
 
     const body = c.req.valid("json");
 
-    try {
-      const saved = await saveSummary(token, body);
-      return c.json(saved, 201);
-    } catch (err) {
-      if (err instanceof AppError) {
-        throw new HTTPException(err.status, {
-          message: err.message,
-          cause: err,
-        });
-      }
-      throw err;
-    }
+    const saved = await saveSummary(token, body);
+    return c.json(saved, 201);
   },
 );
 

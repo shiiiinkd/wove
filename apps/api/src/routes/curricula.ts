@@ -20,8 +20,6 @@ import {
   getTopicsByCurriculumId,
   saveCurriculumAndTopics,
 } from "../services/curriculum-service.js";
-import { AppError } from "../lib/errors.js";
-import { HTTPException } from "hono/http-exception";
 import {
   CurriculumIdParamSchema,
   SaveCurriculumSchema,
@@ -33,19 +31,8 @@ const curriculaRouter = new Hono();
 // 一覧は新しい作成順で返す（画面上で最近の学習を先に確認しやすくするため）
 curriculaRouter.get("/", async (c) => {
   const { token } = await requireAuth(c);
-
-  try {
-    const data = await getCurricula(token);
-    return c.json(data, 200);
-  } catch (err) {
-    if (err instanceof AppError) {
-      throw new HTTPException(err.status, {
-        message: err.message,
-        cause: err,
-      });
-    }
-    throw err;
-  }
+  const data = await getCurricula(token);
+  return c.json(data, 200);
 });
 
 // Get a single curriculum
@@ -67,18 +54,8 @@ curriculaRouter.get(
 
     const { token } = await requireAuth(c);
 
-    try {
-      const data = await getCurriculaById(token, id);
-      return c.json(data, 200);
-    } catch (err) {
-      if (err instanceof AppError) {
-        throw new HTTPException(err.status, {
-          message: err.message,
-          cause: err,
-        });
-      }
-      throw err;
-    }
+    const data = await getCurriculaById(token, id);
+    return c.json(data, 200);
   },
 );
 
@@ -101,18 +78,8 @@ curriculaRouter.get(
 
     const { token } = await requireAuth(c);
 
-    try {
-      const data = await getTopicsByCurriculumId(token, id);
-      return c.json(data, 200);
-    } catch (err) {
-      if (err instanceof AppError) {
-        throw new HTTPException(err.status, {
-          message: err.message,
-          cause: err,
-        });
-      }
-      throw err;
-    }
+    const data = await getTopicsByCurriculumId(token, id);
+    return c.json(data, 200);
   },
 );
 
@@ -135,26 +102,16 @@ curriculaRouter.post(
 
     const body = c.req.valid("json");
 
-    try {
-      const result = await saveCurriculumAndTopics(token, user, body);
+    const result = await saveCurriculumAndTopics(token, user, body);
 
-      return c.json(
-        {
-          message: "Curriculum created successfully",
-          curriculum: result.curriculum,
-          topics: result.topics,
-        },
-        201,
-      );
-    } catch (err) {
-      if (err instanceof AppError) {
-        throw new HTTPException(err.status, {
-          message: err.message,
-          cause: err,
-        });
-      }
-      throw err;
-    }
+    return c.json(
+      {
+        message: "Curriculum created successfully",
+        curriculum: result.curriculum,
+        topics: result.topics,
+      },
+      201,
+    );
   },
 );
 

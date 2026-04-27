@@ -12,14 +12,17 @@
  */
 
 import { Hono } from "hono";
+import type { Next } from "hono";
 import { requireAuth } from "../auth/require-auth.js";
-import { HTTPException } from "hono/http-exception";
 import { zValidator } from "@hono/zod-validator";
-import { AppError } from "../lib/errors.js";
 import { getTopicById, updateTopic } from "../services/topic-service.js";
 import { TopicIdParamSchema, UpdateTopicSchema } from "../schemas/topic.js";
 
-const topicsRouter = new Hono();
+type Variables = {
+  token: string;
+};
+
+const topicsRouter = new Hono<{ Variables: Variables }>();
 
 // Get a single topic
 topicsRouter.get(
@@ -40,18 +43,8 @@ topicsRouter.get(
 
     const { token } = await requireAuth(c);
 
-    try {
-      const data = await getTopicById(token, id);
-      return c.json(data, 200);
-    } catch (err) {
-      if (err instanceof AppError) {
-        throw new HTTPException(err.status, {
-          message: err.message,
-          cause: err,
-        });
-      }
-      throw err;
-    }
+    const data = await getTopicById(token, id);
+    return c.json(data, 200);
   },
 );
 
@@ -69,6 +62,11 @@ topicsRouter.patch(
       );
     }
   }),
+  async (c, next: Next) => {
+    const { token } = await requireAuth(c);
+    c.set("token", token);
+    return next();
+  },
   zValidator("json", UpdateTopicSchema, (result, c) => {
     if (!result.success) {
       return c.json(
@@ -84,20 +82,10 @@ topicsRouter.patch(
     const { id } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const { token } = await requireAuth(c);
+    const token = c.get("token");
 
-    try {
-      const data = await updateTopic(token, id, body);
-      return c.json(data, 200);
-    } catch (err) {
-      if (err instanceof AppError) {
-        throw new HTTPException(err.status, {
-          message: err.message,
-          cause: err,
-        });
-      }
-      throw err;
-    }
+    const data = await updateTopic(token, id, body);
+    return c.json(data, 200);
   },
 );
 
