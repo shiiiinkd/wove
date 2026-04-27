@@ -27,6 +27,11 @@ const topicsRouter = new Hono<{ Variables: Variables }>();
 // Get a single topic
 topicsRouter.get(
   "/:id",
+  async (c, next: Next) => {
+    const { token } = await requireAuth(c);
+    c.set("token", token);
+    return next();
+  },
   zValidator("param", TopicIdParamSchema, (result, c) => {
     if (!result.success) {
       return c.json(
@@ -40,8 +45,7 @@ topicsRouter.get(
   }),
   async (c) => {
     const { id } = c.req.valid("param");
-
-    const { token } = await requireAuth(c);
+    const token = c.get("token");
 
     const data = await getTopicById(token, id);
     return c.json(data, 200);
@@ -51,6 +55,11 @@ topicsRouter.get(
 // MVPでは topic 構造編集を許可しないため、更新対象を title/description に限定する。
 topicsRouter.patch(
   "/:id",
+  async (c, next: Next) => {
+    const { token } = await requireAuth(c);
+    c.set("token", token);
+    return next();
+  },
   zValidator("param", TopicIdParamSchema, (result, c) => {
     if (!result.success) {
       return c.json(
@@ -62,11 +71,6 @@ topicsRouter.patch(
       );
     }
   }),
-  async (c, next: Next) => {
-    const { token } = await requireAuth(c);
-    c.set("token", token);
-    return next();
-  },
   zValidator("json", UpdateTopicSchema, (result, c) => {
     if (!result.success) {
       return c.json(
