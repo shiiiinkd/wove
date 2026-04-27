@@ -55,7 +55,7 @@ export const getCurriculumById = async (
     if (error.code === "22P02") {
       throw new AppError("Invalid curriculum id", 400);
     }
-    throw error;
+    throw new AppError("Failed to fetch curriculum", 500);
   }
   return data;
 };
