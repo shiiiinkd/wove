@@ -83,24 +83,38 @@ curriculaRouter.get(
 );
 
 // 業務ルール: topics は order_index で順序管理するため ASC（昇順） で返す。
-curriculaRouter.get("/:id/topics", async (c) => {
-  const id = c.req.param("id");
-
-  const { token } = await requireAuth(c);
-
-  try {
-    const data = await getTopicsByCurriculumId(token, id);
-    return c.json(data, 200);
-  } catch (err) {
-    if (err instanceof AppError) {
-      throw new HTTPException(err.status, {
-        message: err.message,
-        cause: err,
-      });
+curriculaRouter.get(
+  "/:id/topics",
+  zValidator("param", CurriculumIdParamSchema, (result, c) => {
+    if (!result.success) {
+      return c.json(
+        {
+          message: "Invalid curriculum id",
+          issues: result.error.issues,
+        },
+        400,
+      );
     }
-    throw err;
-  }
-});
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param");
+
+    const { token } = await requireAuth(c);
+
+    try {
+      const data = await getTopicsByCurriculumId(token, id);
+      return c.json(data, 200);
+    } catch (err) {
+      if (err instanceof AppError) {
+        throw new HTTPException(err.status, {
+          message: err.message,
+          cause: err,
+        });
+      }
+      throw err;
+    }
+  },
+);
 
 // curriculum,topicsを保存する
 curriculaRouter.post(
