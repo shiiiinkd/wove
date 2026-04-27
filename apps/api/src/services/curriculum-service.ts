@@ -34,7 +34,7 @@ export const getCurricula = async (
   return data;
 };
 
-export const getCurriculaById = async (
+export const getCurriculumById = async (
   token: string,
   id: string,
 ): Promise<CurriculumData> => {
