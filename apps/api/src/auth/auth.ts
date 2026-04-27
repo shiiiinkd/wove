@@ -4,7 +4,10 @@
  * - token から現在ユーザーを検証する認証ユーティリティを提供する。
  *
  * Policy:
- * - この層ではレスポンスを返さず、null を返して呼び出し元でエラーハンドリングを行い、HTTPエラー化する。
+ * - この層の関数（getAccessTokenFromHeader / getCurrentUserFromToken）は
+ *   レスポンスを返さず、null を返す。
+ * - null を受け取った呼び出し元（require-auth.ts の requireAuth）が
+ *   HTTPException を throw してHTTPエラー化する責務を持つ。
  */
 
 import type { Context } from "hono";
