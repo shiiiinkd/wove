@@ -7,7 +7,7 @@ export const TopicIdParamSchema = z.object({
 export const UpdateTopicSchema = z
   .object({
     title: z.string().trim().min(1).max(100).optional(),
-    description: z.string().trim().max(500).optional(),
+    description: z.string().trim().min(1).max(500).optional(),
   })
   .strict()
   .superRefine((data, ctx) => {
