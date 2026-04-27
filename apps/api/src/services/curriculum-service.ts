@@ -30,7 +30,9 @@ export const getCurricula = async (
     .select(CURRICULUM_SELECT_COLUMNS)
     .order("created_at", { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    throw new AppError("Failed to fetch curricula", 500);
+  }
   return data;
 };
 
