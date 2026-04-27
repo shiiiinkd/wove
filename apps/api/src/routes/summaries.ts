@@ -14,16 +14,26 @@
  */
 
 import { Hono } from "hono";
+import type { Next } from "hono";
 import { requireAuth } from "../auth/require-auth.js";
 import { zValidator } from "@hono/zod-validator";
 import { SaveSummarySchema } from "../schemas/summary.js";
 import { saveSummary } from "../services/summary-service.js";
 
-const summariesRouter = new Hono();
+type Variables = {
+  token: string;
+};
+
+const summariesRouter = new Hono<{ Variables: Variables }>();
 
 // Save a new summary for a topic
 summariesRouter.post(
   "/",
+  async (c, next: Next) => {
+    const { token } = await requireAuth(c);
+    c.set("token", token);
+    return next();
+  },
   zValidator("json", SaveSummarySchema, (result, c) => {
     if (!result.success) {
       return c.json(
@@ -36,7 +46,7 @@ summariesRouter.post(
     }
   }),
   async (c) => {
-    const { token } = await requireAuth(c);
+    const token = c.get("token");
 
     const body = c.req.valid("json");
 

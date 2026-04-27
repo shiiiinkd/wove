@@ -13,6 +13,8 @@
  */
 
 import { Hono } from "hono";
+import type { Next } from "hono";
+import type { User } from "@supabase/supabase-js";
 import { requireAuth } from "../auth/require-auth.js";
 import {
   getCurricula,
@@ -26,7 +28,12 @@ import {
 } from "../schemas/curriculum.js";
 import { zValidator } from "@hono/zod-validator";
 
-const curriculaRouter = new Hono();
+type Variables = {
+  token: string;
+  user: User;
+};
+
+const curriculaRouter = new Hono<{ Variables: Variables }>();
 
 // 一覧は新しい作成順で返す（画面上で最近の学習を先に確認しやすくするため）
 curriculaRouter.get("/", async (c) => {
@@ -86,6 +93,12 @@ curriculaRouter.get(
 // curriculum,topicsを保存する
 curriculaRouter.post(
   "/",
+  async (c, next: Next) => {
+    const { token, user } = await requireAuth(c);
+    c.set("token", token);
+    c.set("user", user);
+    return next();
+  },
   zValidator("json", SaveCurriculumSchema, (result, c) => {
     if (!result.success) {
       return c.json(
@@ -98,7 +111,8 @@ curriculaRouter.post(
     }
   }),
   async (c) => {
-    const { token, user } = await requireAuth(c);
+    const token = c.get("token");
+    const user = c.get("user");
 
     const body = c.req.valid("json");
 
