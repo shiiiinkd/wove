@@ -18,7 +18,7 @@ import type { User } from "@supabase/supabase-js";
 import { requireAuth } from "../auth/require-auth.js";
 import {
   getCurricula,
-  getCurriculaById,
+  getCurriculumById,
   getTopicsByCurriculumId,
   saveCurriculumAndTopics,
 } from "../services/curriculum-service.js";
@@ -61,7 +61,7 @@ curriculaRouter.get(
 
     const { token } = await requireAuth(c);
 
-    const data = await getCurriculaById(token, id);
+    const data = await getCurriculumById(token, id);
     return c.json(data, 200);
   },
 );
