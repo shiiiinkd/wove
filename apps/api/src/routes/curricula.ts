@@ -45,6 +45,11 @@ curriculaRouter.get("/", async (c) => {
 // Get a single curriculum
 curriculaRouter.get(
   "/:id",
+  async (c, next: Next) => {
+    const { token } = await requireAuth(c);
+    c.set("token", token);
+    return next();
+  },
   zValidator("param", CurriculumIdParamSchema, (result, c) => {
     if (!result.success) {
       return c.json(
@@ -58,9 +63,7 @@ curriculaRouter.get(
   }),
   async (c) => {
     const { id } = c.req.valid("param");
-
-    const { token } = await requireAuth(c);
-
+    const token = c.get("token");
     const data = await getCurriculumById(token, id);
     return c.json(data, 200);
   },
@@ -69,6 +72,11 @@ curriculaRouter.get(
 // 業務ルール: topics は order_index で順序管理するため ASC（昇順） で返す。
 curriculaRouter.get(
   "/:id/topics",
+  async (c, next: Next) => {
+    const { token } = await requireAuth(c);
+    c.set("token", token);
+    return next();
+  },
   zValidator("param", CurriculumIdParamSchema, (result, c) => {
     if (!result.success) {
       return c.json(
@@ -82,9 +90,7 @@ curriculaRouter.get(
   }),
   async (c) => {
     const { id } = c.req.valid("param");
-
-    const { token } = await requireAuth(c);
-
+    const token = c.get("token");
     const data = await getTopicsByCurriculumId(token, id);
     return c.json(data, 200);
   },
