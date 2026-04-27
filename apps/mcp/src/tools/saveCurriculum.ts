@@ -40,7 +40,7 @@ const SaveCurriculumResponseSchema = z.object({
       .object({
         title: z.string(),
       })
-      .loose(),
+      .passthrough(),
   ),
 });
 
