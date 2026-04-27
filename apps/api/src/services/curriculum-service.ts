@@ -76,7 +76,7 @@ export const getTopicsByCurriculumId = async (
     if (error.code === "22P02") {
       throw new AppError("Invalid curriculum id", 400);
     }
-    throw error;
+    throw new AppError("Failed to fetch topics", 500);
   }
   // topics が空の場合のみ、curriculum の存在確認を行う（404 セマンティクスのため）
   if (data.length === 0) {
@@ -93,7 +93,7 @@ export const getTopicsByCurriculumId = async (
       if (curriculumError.code === "22P02") {
         throw new AppError("Invalid curriculum id", 400);
       }
-      throw curriculumError;
+      throw new AppError("Failed to fetch curriculum", 500);
     }
   }
   return data;
